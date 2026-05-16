@@ -1,0 +1,210 @@
+$ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+$rootPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$watchdogDir = Join-Path $rootPath "logs\watchdog"
+$logPath = Join-Path $watchdogDir "runtime.log"
+$statePath = Join-Path $watchdogDir "state.json"
+$managerPidPath = Join-Path $watchdogDir "manager.pid"
+$postgresBinDir = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin"
+$postgresCtlPath = Join-Path $postgresBinDir "pg_ctl.exe"
+$postgresReadyPath = Join-Path $postgresBinDir "pg_isready.exe"
+$postgresDataPath = Join-Path $rootPath ".tools\postgres\data"
+$postgresLogPath = Join-Path $rootPath ".tools\postgres\postgres.log"
+
+New-Item -ItemType Directory -Path $watchdogDir -Force | Out-Null
+Set-Location $rootPath
+
+function Write-WatchdogLog {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Message
+  )
+
+  $line = "{0} {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
+  Add-Content -LiteralPath $logPath -Value $line
+}
+
+function Read-State {
+  if (-not (Test-Path -LiteralPath $statePath)) {
+    return [ordered]@{
+      apiPid = $null
+      botPid = $null
+    }
+  }
+
+  try {
+    return Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+  }
+  catch {
+    Write-WatchdogLog "State file is broken, resetting: $($_.Exception.Message)"
+    return [ordered]@{
+      apiPid = $null
+      botPid = $null
+    }
+  }
+}
+
+function Write-State {
+  param(
+    [Parameter(Mandatory = $true)]
+    [object]$State
+  )
+
+  $State | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+}
+
+function Test-ProcessAlive {
+  param(
+    [int]$ProcessId
+  )
+
+  if (-not $ProcessId) {
+    return $false
+  }
+
+  try {
+    $null = Get-Process -Id $ProcessId -ErrorAction Stop
+    return $true
+  }
+  catch {
+    return $false
+  }
+}
+
+function Test-PostgresReady {
+  if (-not (Test-Path -LiteralPath $postgresReadyPath)) {
+    return $false
+  }
+
+  & $postgresReadyPath -h localhost -p 5432 *> $null
+  return $LASTEXITCODE -eq 0
+}
+
+function Ensure-PostgresReady {
+  if (Test-PostgresReady) {
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $postgresCtlPath)) {
+    throw "Portable PostgreSQL not found: $postgresCtlPath"
+  }
+
+  Write-WatchdogLog "PostgreSQL is down, attempting restart"
+  & $postgresCtlPath -D $postgresDataPath -l $postgresLogPath start | Out-Null
+  Start-Sleep -Seconds 3
+
+  if (-not (Test-PostgresReady)) {
+    throw "PostgreSQL failed to restart"
+  }
+
+  Write-WatchdogLog "PostgreSQL restarted successfully"
+}
+
+function Find-ApiProcessId {
+  try {
+    $connection = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction Stop |
+      Select-Object -First 1
+
+    if ($null -ne $connection -and $connection.OwningProcess) {
+      return [int]$connection.OwningProcess
+    }
+  }
+  catch {
+    return $null
+  }
+
+  return $null
+}
+
+function Find-BotProcessId {
+  try {
+    $connection = Get-NetTCPConnection -RemotePort 443 -State Established -ErrorAction Stop |
+      Where-Object { $_.RemoteAddress -like "149.154.*" } |
+      Select-Object -First 1
+
+    if ($null -ne $connection -and $connection.OwningProcess) {
+      return [int]$connection.OwningProcess
+    }
+  }
+  catch {
+    return $null
+  }
+
+  return $null
+}
+
+function Start-ServiceProcess {
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("api", "bot")]
+    [string]$Name
+  )
+
+  $command = switch ($Name) {
+    "api" {
+      "node --env-file=../../.env dist/main.js"
+    }
+    "bot" {
+      "node --env-file=../../.env dist/main.js"
+    }
+  }
+  $workingDirectory = switch ($Name) {
+    "api" { Join-Path $rootPath "apps\api" }
+    "bot" { Join-Path $rootPath "apps\bot" }
+  }
+
+  $stdoutPath = Join-Path $watchdogDir ("{0}.stdout.log" -f $Name)
+  $stderrPath = Join-Path $watchdogDir ("{0}.stderr.log" -f $Name)
+  $wrappedCommand = "$command >> `"$stdoutPath`" 2>> `"$stderrPath`""
+
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = "cmd.exe"
+  $startInfo.Arguments = "/c $wrappedCommand"
+  $startInfo.WorkingDirectory = $workingDirectory
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+
+  $process = [System.Diagnostics.Process]::Start($startInfo)
+
+  Write-WatchdogLog ("Started {0} process, pid={1}" -f $Name, $process.Id)
+  return $process.Id
+}
+
+try {
+  Set-Content -LiteralPath $managerPidPath -Value $PID -Encoding UTF8
+  Write-WatchdogLog ("Watchdog started, pid={0}" -f $PID)
+
+  while ($true) {
+    $state = Read-State
+
+    Ensure-PostgresReady
+
+    if (-not (Test-ProcessAlive -ProcessId $state.apiPid)) {
+      $existingApiPid = Find-ApiProcessId
+      if ($existingApiPid -and (Test-ProcessAlive -ProcessId $existingApiPid)) {
+        $state.apiPid = $existingApiPid
+      }
+      else {
+        $state.apiPid = Start-ServiceProcess -Name "api"
+      }
+    }
+
+    if (-not (Test-ProcessAlive -ProcessId $state.botPid)) {
+      $existingBotPid = Find-BotProcessId
+      if ($existingBotPid -and (Test-ProcessAlive -ProcessId $existingBotPid)) {
+        $state.botPid = $existingBotPid
+      }
+      else {
+        $state.botPid = Start-ServiceProcess -Name "bot"
+      }
+    }
+
+    Write-State -State $state
+    Start-Sleep -Seconds 8
+  }
+}
+catch {
+  Write-WatchdogLog ("Watchdog crashed: {0}" -f $_.Exception.Message)
+  throw
+}

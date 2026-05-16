@@ -2,10 +2,16 @@ import { createBot } from "./bot";
 import { createRuntimeLogger } from "./common/runtime-logger";
 import { getBotRuntimeConfig } from "./config/bot-config";
 
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function bootstrap() {
   const logger = createRuntimeLogger({
     scope: "bot-bootstrap",
-    filePath: "logs/bot/runtime.jsonl",
+    filePath: "../../logs/bot/runtime.jsonl",
     minLevel: "debug",
   });
 
@@ -27,7 +33,10 @@ async function bootstrap() {
         : "Live mode enabled: validating token and starting polling.",
     });
 
-    const bot = createBot(config.telegramBotToken);
+    const bot = createBot(config.telegramBotToken, {
+      config,
+      logger,
+    });
 
     if (config.dryRun) {
       logger.warn("Bot started in dry-run mode", {
@@ -41,12 +50,37 @@ async function bootstrap() {
       return;
     }
 
-    const botProfile = await bot.api.getMe();
+    const reconnectDelayMs = 15_000;
+    let botProfile:
+      | {
+          id: number;
+          username?: string;
+          can_join_groups?: boolean;
+        }
+      | undefined;
+
+    for (;;) {
+      try {
+        botProfile = await bot.api.getMe();
+        break;
+      } catch (error) {
+        const normalizedError = error as Error;
+
+        logger.error("Telegram token validation failed", {
+          message: normalizedError.message,
+        });
+        logger.warn("Telegram API is temporarily unavailable, retrying", {
+          retryInMs: reconnectDelayMs,
+        });
+
+        await wait(reconnectDelayMs);
+      }
+    }
 
     logger.info("Telegram bot token validated", {
-      botId: botProfile.id,
-      botUsername: botProfile.username,
-      canJoinGroups: botProfile.can_join_groups,
+      botId: botProfile?.id ?? null,
+      botUsername: botProfile?.username ?? null,
+      canJoinGroups: botProfile?.can_join_groups ?? null,
     });
 
     process.once("SIGINT", () => bot.stop());

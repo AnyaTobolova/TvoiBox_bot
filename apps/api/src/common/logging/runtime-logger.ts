@@ -19,6 +19,7 @@ interface RuntimeLoggerOptions {
 export function createRuntimeLogger(options: RuntimeLoggerOptions) {
   const minLevel = options.minLevel ?? "info";
   mkdirSync(dirname(options.filePath), { recursive: true });
+  let fileWriteWarningShown = false;
 
   const write = (level: LogLevel, message: string, context?: Record<string, unknown>) => {
     if (severityOrder[level] < severityOrder[minLevel]) {
@@ -33,7 +34,26 @@ export function createRuntimeLogger(options: RuntimeLoggerOptions) {
       context,
     });
 
-    appendFileSync(options.filePath, `${record}\n`, { encoding: "utf8" });
+    try {
+      appendFileSync(options.filePath, `${record}\n`, { encoding: "utf8" });
+    } catch (error) {
+      if (!fileWriteWarningShown) {
+        fileWriteWarningShown = true;
+        const normalizedError = error as Error;
+        console.warn(
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            scope: options.scope,
+            level: "warn",
+            message: "Runtime log file is unavailable, continuing with console output only",
+            context: {
+              filePath: options.filePath,
+              error: normalizedError.message,
+            },
+          }),
+        );
+      }
+    }
 
     if (level === "error") {
       console.error(record);

@@ -13,7 +13,7 @@ function maskConnectionString(connectionString: string): string {
 async function bootstrap() {
   const bootstrapLogger = createRuntimeLogger({
     scope: "api-bootstrap",
-    filePath: "logs/api/runtime.jsonl",
+    filePath: "../../logs/api/runtime.jsonl",
     minLevel: "debug",
   });
 
@@ -30,7 +30,7 @@ async function bootstrap() {
 
     bootstrapLogger.info("Database bootstrap check", {
       databaseUrl: maskConnectionString(config.databaseUrl),
-      note: "Real database connection will be implemented on stage 3.",
+      note: "Use /health or `corepack pnpm db:runtime-check` for a live connectivity check.",
     });
 
     const app = await NestFactory.create(AppModule, {

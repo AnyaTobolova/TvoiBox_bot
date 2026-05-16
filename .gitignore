@@ -2,11 +2,16 @@ node_modules/
 dist/
 .next/
 .turbo/
+.tools/
 .env
 .env.local
 .env.*.local
 coverage/
 *.log
+*.tsbuildinfo
+ID google calendar.txt
+apps/api/logs/
+logs/
 logs/**/*.log
 logs/**/*.jsonl
 apps/**/dist/

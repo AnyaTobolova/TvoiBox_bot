@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 
 type RuntimeMode = "development" | "test" | "production";
 type LogLevel = "debug" | "info" | "warn" | "error";
+type CalendarSyncMode = "real" | "mock";
 
 const APP_TIMEZONE = "Europe/Moscow";
 
@@ -51,10 +52,17 @@ export interface ApiRuntimeConfig {
   timezone: string;
   logLevel: LogLevel;
   nodeEnv: RuntimeMode;
+  adminTelegramId: string;
   trainerTelegramId: string;
+  googleCalendarId: string;
+  googleServiceAccountEmail: string;
+  googlePrivateKey: string;
+  googleCalendarSyncMode: CalendarSyncMode;
 }
 
 export function getApiRuntimeConfig(): ApiRuntimeConfig {
+  const trainerTelegramId = getRequiredEnv("TRAINER_TELEGRAM_ID");
+
   return {
     name: getOptionalEnv("APP_NAME", "tvoy-box-training-scheduler"),
     host: getOptionalEnv("APP_HOST", "0.0.0.0"),
@@ -63,7 +71,12 @@ export function getApiRuntimeConfig(): ApiRuntimeConfig {
     timezone: getOptionalEnv("TZ", APP_TIMEZONE),
     logLevel: getOptionalEnv("API_LOG_LEVEL", "debug") as LogLevel,
     nodeEnv: getOptionalEnv("NODE_ENV", "development") as RuntimeMode,
-    trainerTelegramId: getRequiredEnv("TRAINER_TELEGRAM_ID"),
+    adminTelegramId: getOptionalEnv("ADMIN_TELEGRAM_ID", trainerTelegramId),
+    trainerTelegramId,
+    googleCalendarId: getOptionalEnv("GOOGLE_CALENDAR_ID", "primary"),
+    googleServiceAccountEmail: getOptionalEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", ""),
+    googlePrivateKey: getOptionalEnv("GOOGLE_PRIVATE_KEY", ""),
+    googleCalendarSyncMode: getOptionalEnv("GOOGLE_CALENDAR_SYNC_MODE", "real") as CalendarSyncMode,
   };
 }
 
