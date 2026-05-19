@@ -1,0 +1,83 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DEPLOY_ROOT: /opt/stack/tvoy-box-bot-deploy
+      LEGACY_ROOT: /opt/stack/tvoy-box-bot
+      RELEASE_NAME: ${{ github.sha }}
+      RELEASE_ARCHIVE_NAME: tvoy-box-bot-${{ github.sha }}.tar.gz
+      KEEP_RELEASES: "5"
+      PRODUCTION_HEALTHCHECK_URL: https://api.anyatobolova.ru/health
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create release archive
+        shell: bash
+        run: |
+          git archive --format=tar.gz --output "$RELEASE_ARCHIVE_NAME" HEAD
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        shell: bash
+        env:
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release bundle
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          scp -P "$VPS_PORT" \
+            "$RELEASE_ARCHIVE_NAME" \
+            "scripts/deploy/remote-deploy.sh" \
+            "${VPS_USER}@${VPS_HOST}:/tmp/"
+
+      - name: Run remote deploy
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -p "$VPS_PORT" "${VPS_USER}@${VPS_HOST}" "\
+            chmod 700 /tmp/remote-deploy.sh && \
+            DEPLOY_ROOT='${DEPLOY_ROOT}' \
+            LEGACY_ROOT='${LEGACY_ROOT}' \
+            RELEASE_NAME='${RELEASE_NAME}' \
+            RELEASE_ARCHIVE='/tmp/${RELEASE_ARCHIVE_NAME}' \
+            KEEP_RELEASES='${KEEP_RELEASES}' \
+            /bin/bash /tmp/remote-deploy.sh"
+
+      - name: Verify public health endpoint
+        shell: bash
+        run: |
+          curl -fsSL "$PRODUCTION_HEALTHCHECK_URL"
