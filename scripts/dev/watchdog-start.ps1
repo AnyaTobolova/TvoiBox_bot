@@ -8,14 +8,19 @@ $rootPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $watchdogDir = Join-Path $rootPath "logs\watchdog"
 $managerPidPath = Join-Path $watchdogDir "manager.pid"
 $loopScriptPath = Join-Path $PSScriptRoot "watchdog-loop.ps1"
+$dockerHelpersPath = Join-Path $PSScriptRoot "docker-helpers.ps1"
+$postgresRunnerPath = Join-Path $PSScriptRoot "postgres-runner.ps1"
 $postgresBinDir = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin"
-$postgresExePath = Join-Path $postgresBinDir "postgres.exe"
+$postgresCtlPath = Join-Path $postgresBinDir "pg_ctl.exe"
 $postgresReadyPath = Join-Path $postgresBinDir "pg_isready.exe"
 $postgresDataPath = Join-Path $rootPath ".tools\postgres\data"
 $postgresLogPath = Join-Path $rootPath ".tools\postgres\postgres.log"
 $postmasterPidPath = Join-Path $postgresDataPath "postmaster.pid"
 
+. $dockerHelpersPath
+
 New-Item -ItemType Directory -Path $watchdogDir -Force | Out-Null
+Initialize-DockerClient -RootPath $rootPath
 
 function Test-ProcessAlive {
   param([int]$ProcessId)
@@ -39,6 +44,29 @@ function Test-PostgresReady {
   }
 
   & $postgresReadyPath -h localhost -p 5432 *> $null
+  return $LASTEXITCODE -eq 0
+}
+
+function Test-DockerAvailable {
+  return (Get-DockerDaemonStatus).daemonAvailable
+}
+
+function Start-DockerPostgres {
+  $dockerStatus = Get-DockerDaemonStatus
+  if (-not $dockerStatus.daemonAvailable) {
+    return $false
+  }
+
+  & $dockerStatus.cliPath compose -f (Join-Path $rootPath "docker-compose.yml") up -d postgres *> $null
+  return $LASTEXITCODE -eq 0
+}
+
+function Test-PostgresRunning {
+  if (-not (Test-Path -LiteralPath $postgresCtlPath)) {
+    return $false
+  }
+
+  & $postgresCtlPath status -D "$postgresDataPath" *> $null
   return $LASTEXITCODE -eq 0
 }
 
@@ -69,7 +97,7 @@ function Remove-StalePostmasterPid {
     return
   }
 
-  if (Test-ProcessAlive -ProcessId $postgresPid) {
+  if ((Test-ProcessAlive -ProcessId $postgresPid) -or (Test-PostgresRunning)) {
     return
   }
 
@@ -77,28 +105,20 @@ function Remove-StalePostmasterPid {
 }
 
 function Start-PostgresProcess {
-  if (-not (Test-Path -LiteralPath $postgresExePath)) {
-    throw "Portable PostgreSQL executable not found: $postgresExePath"
+  if (-not (Test-Path -LiteralPath $postgresRunnerPath)) {
+    throw "Portable PostgreSQL runner not found: $postgresRunnerPath"
   }
 
   Remove-StalePostmasterPid
 
-  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-  $startInfo.FileName = $postgresExePath
-  $startInfo.Arguments = "-D `"$postgresDataPath`""
-  $startInfo.WorkingDirectory = $postgresBinDir
-  $startInfo.UseShellExecute = $false
-  $startInfo.CreateNoWindow = $true
-  $startInfo.RedirectStandardOutput = $true
-  $startInfo.RedirectStandardError = $true
+  $process = Start-Process `
+    -FilePath "powershell.exe" `
+    -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $postgresRunnerPath) `
+    -WorkingDirectory $rootPath `
+    -WindowStyle Hidden `
+    -PassThru
 
-  $process = New-Object System.Diagnostics.Process
-  $process.StartInfo = $startInfo
-  [void]$process.Start()
-  $process.BeginOutputReadLine()
-  $process.BeginErrorReadLine()
-
-  return $process
+  return $process.Id
 }
 
 function Start-PostgresIfNeeded {
@@ -107,7 +127,18 @@ function Start-PostgresIfNeeded {
     return
   }
 
-  $postgresProcess = Start-PostgresProcess
+  $dockerStatus = Get-DockerDaemonStatus
+  if ($dockerStatus.daemonAvailable) {
+    if (-not (Start-DockerPostgres)) {
+      throw "Docker PostgreSQL failed to start via docker compose."
+    }
+  }
+  elseif ($dockerStatus.cliAvailable) {
+    throw (Get-DockerUnavailableMessage -DockerStatus $dockerStatus)
+  }
+  elseif (-not (Test-PostgresRunning)) {
+    $null = Start-PostgresProcess
+  }
 
   for ($attempt = 0; $attempt -lt 15; $attempt++) {
     Start-Sleep -Seconds 1
@@ -116,10 +147,6 @@ function Start-PostgresIfNeeded {
       Write-Output "PostgreSQL started"
       return
     }
-
-    if ($postgresProcess.HasExited) {
-      break
-    }
   }
 
   $errorTail = ""
@@ -127,7 +154,15 @@ function Start-PostgresIfNeeded {
     $errorTail = (Get-Content -LiteralPath $postgresLogPath -Tail 20) -join [Environment]::NewLine
   }
 
-  throw ("PostgreSQL failed to start. Recent log tail:`n{0}" -f $errorTail)
+  if ($dockerStatus.daemonAvailable) {
+    throw "PostgreSQL failed to become ready even after docker compose up -d postgres."
+  }
+
+  throw (
+    "PostgreSQL failed to start in background mode. " +
+    "If Docker Desktop is installed, prefer `corepack pnpm dev:db:up`. Otherwise run `corepack pnpm dev:postgres:run` in a separate PowerShell window first, then retry `corepack pnpm dev:watchdog:start`." +
+    "`nRecent log tail:`n{0}" -f $errorTail
+  )
 }
 
 if (Test-Path -LiteralPath $managerPidPath) {

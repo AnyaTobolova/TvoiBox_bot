@@ -8,8 +8,14 @@ $rootPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $watchdogDir = Join-Path $rootPath "logs\watchdog"
 $managerPidPath = Join-Path $watchdogDir "manager.pid"
 $statePath = Join-Path $watchdogDir "state.json"
+$composePath = Join-Path $rootPath "docker-compose.yml"
+$dockerHelpersPath = Join-Path $PSScriptRoot "docker-helpers.ps1"
+$postgresCtlPath = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin\pg_ctl.exe"
 $postgresReadyPath = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin\pg_isready.exe"
 $postmasterPidPath = Join-Path $rootPath ".tools\postgres\data\postmaster.pid"
+
+. $dockerHelpersPath
+Initialize-DockerClient -RootPath $rootPath
 
 function Test-ProcessAlive {
   param([int]$ProcessId)
@@ -47,6 +53,29 @@ function Read-PostgresPidFromPidFile {
   return $null
 }
 
+function Test-DockerAvailable {
+  return (Get-DockerDaemonStatus).daemonAvailable
+}
+
+function Test-DockerPostgresRunning {
+  $dockerStatus = Get-DockerDaemonStatus
+  if (-not $dockerStatus.daemonAvailable) {
+    return $false
+  }
+
+  & $dockerStatus.cliPath compose -f $composePath ps --status running postgres *> $null
+  return $LASTEXITCODE -eq 0
+}
+
+function Test-PostgresRunning {
+  if (-not (Test-Path -LiteralPath $postgresCtlPath)) {
+    return $false
+  }
+
+  & $postgresCtlPath status -D (Join-Path $rootPath ".tools\postgres\data") *> $null
+  return $LASTEXITCODE -eq 0
+}
+
 $managerPid = 0
 if (Test-Path -LiteralPath $managerPidPath) {
   $rawPid = Get-Content -LiteralPath $managerPidPath | Select-Object -First 1
@@ -74,7 +103,10 @@ if (Test-Path -LiteralPath $postgresReadyPath) {
   $postgresRunning = $LASTEXITCODE -eq 0
 }
 
-if (-not $postgresProcessAlive) {
+$postgresManaged = Test-PostgresRunning
+$postgresDocker = Test-DockerPostgresRunning
+
+if (-not $postgresProcessAlive -and -not $postgresManaged -and -not $postgresDocker) {
   $postgresPid = $null
 }
 
@@ -85,7 +117,10 @@ $status = [ordered]@{
   }
   postgres = [ordered]@{
     "pid" = $postgresPid
-    "running" = ($postgresRunning -and $postgresProcessAlive)
+    "running" = ($postgresRunning -and ($postgresProcessAlive -or $postgresManaged -or $postgresDocker))
+    "ready" = $postgresRunning
+    "managed" = $postgresManaged
+    "docker" = $postgresDocker
   }
   api = [ordered]@{
     "pid" = $apiPid

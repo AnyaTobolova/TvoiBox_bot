@@ -99,11 +99,11 @@ async function main() {
 
     if (!dockerStatus.available && !psqlStatus.available) {
       console.log(
-        "- Подсказка: в текущем окружении не найден ни docker, ни psql. Сначала нужно установить и запустить PostgreSQL локально.",
+        "- Подсказка: в текущем окружении не найден ни docker, ни psql. Для этого проекта лучше установить Docker Desktop и использовать `corepack pnpm dev:db:up`.",
       );
     } else {
       console.log(
-        "- Подсказка: проверь, что PostgreSQL действительно запущен и принимает подключения по DATABASE_URL.",
+        "- Подсказка: проверь, что PostgreSQL действительно запущен и принимает подключения по DATABASE_URL. Для Docker-режима используй `corepack pnpm dev:db:up`.",
       );
     }
 

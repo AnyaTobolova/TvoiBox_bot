@@ -8,9 +8,15 @@ $rootPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $watchdogDir = Join-Path $rootPath "logs\watchdog"
 $managerPidPath = Join-Path $watchdogDir "manager.pid"
 $statePath = Join-Path $watchdogDir "state.json"
+$composePath = Join-Path $rootPath "docker-compose.yml"
+$dockerHelpersPath = Join-Path $PSScriptRoot "docker-helpers.ps1"
 $postgresBinDir = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin"
+$postgresCtlPath = Join-Path $postgresBinDir "pg_ctl.exe"
 $postgresReadyPath = Join-Path $postgresBinDir "pg_isready.exe"
 $postmasterPidPath = Join-Path $rootPath ".tools\postgres\data\postmaster.pid"
+
+. $dockerHelpersPath
+Initialize-DockerClient -RootPath $rootPath
 
 function Try-StopProcess {
   param([int]$ProcessId, [string]$Name)
@@ -48,6 +54,29 @@ function Read-PostgresPidFromPidFile {
   return $null
 }
 
+function Test-DockerAvailable {
+  return (Get-DockerDaemonStatus).daemonAvailable
+}
+
+function Test-DockerPostgresRunning {
+  $dockerStatus = Get-DockerDaemonStatus
+  if (-not $dockerStatus.daemonAvailable) {
+    return $false
+  }
+
+  & $dockerStatus.cliPath compose -f $composePath ps --status running postgres *> $null
+  return $LASTEXITCODE -eq 0
+}
+
+function Test-PostgresRunning {
+  if (-not (Test-Path -LiteralPath $postgresCtlPath)) {
+    return $false
+  }
+
+  & $postgresCtlPath status -D (Join-Path $rootPath ".tools\postgres\data") *> $null
+  return $LASTEXITCODE -eq 0
+}
+
 if (Test-Path -LiteralPath $statePath) {
   try {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
@@ -74,7 +103,24 @@ if (Test-Path -LiteralPath $statePath) {
   Remove-Item -LiteralPath $statePath -Force
 }
 
-if (Test-Path -LiteralPath $postgresReadyPath) {
+if (Test-DockerPostgresRunning) {
+  $dockerStatus = Get-DockerDaemonStatus
+  & $dockerStatus.cliPath compose -f $composePath stop postgres *> $null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Output "Stopped postgres via docker compose"
+  }
+}
+elseif (Test-PostgresRunning) {
+  & $postgresCtlPath stop -D (Join-Path $rootPath ".tools\postgres\data") -m fast -w -t 20 *> $null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Output "Stopped postgres via pg_ctl"
+  }
+  else {
+    $postgresPid = Read-PostgresPidFromPidFile
+    Try-StopProcess -ProcessId $postgresPid -Name "postgres"
+  }
+}
+elseif (Test-Path -LiteralPath $postgresReadyPath) {
   & $postgresReadyPath -h localhost -p 5432 *> $null
   if ($LASTEXITCODE -eq 0) {
     $postgresPid = Read-PostgresPidFromPidFile

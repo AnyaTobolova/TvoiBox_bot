@@ -756,27 +756,39 @@ export class BookingsService {
       throw new ConflictException("Training record not found for this booking");
     }
 
-    const calendarSync = prepared.booking.training.calendarEventId
-      ? await this.googleCalendarService.updateEvent(prepared.booking.training.calendarEventId, {
-          trainingId: prepared.booking.training.id,
-          clientName: prepared.booking.client.fullName,
-          clientPhone: prepared.booking.client.phone,
-          clientUsername: prepared.booking.client.username,
-          clientTelegramId: prepared.booking.client.telegramId,
-          startAt: prepared.targetSlot.startAt,
-          endAt: prepared.targetSlot.endAt,
-          trainerComment: prepared.booking.trainerComment,
-        })
-      : await this.googleCalendarService.createEvent({
-          trainingId: prepared.booking.training.id,
-          clientName: prepared.booking.client.fullName,
-          clientPhone: prepared.booking.client.phone,
-          clientUsername: prepared.booking.client.username,
-          clientTelegramId: prepared.booking.client.telegramId,
-          startAt: prepared.targetSlot.startAt,
-          endAt: prepared.targetSlot.endAt,
-          trainerComment: prepared.booking.trainerComment,
-        });
+    const calendarOperation = prepared.booking.training.calendarEventId
+      ? SyncOperation.UPDATE
+      : SyncOperation.CREATE;
+    let calendarSync:
+      | Awaited<ReturnType<GoogleCalendarService["createEvent"]>>
+      | Awaited<ReturnType<GoogleCalendarService["updateEvent"]>>
+      | null = null;
+    let calendarSyncErrorMessage: string | null = null;
+    try {
+      calendarSync = prepared.booking.training.calendarEventId
+        ? await this.googleCalendarService.updateEvent(prepared.booking.training.calendarEventId, {
+            trainingId: prepared.booking.training.id,
+            clientName: prepared.booking.client.fullName,
+            clientPhone: prepared.booking.client.phone,
+            clientUsername: prepared.booking.client.username,
+            clientTelegramId: prepared.booking.client.telegramId,
+            startAt: prepared.targetSlot.startAt,
+            endAt: prepared.targetSlot.endAt,
+            trainerComment: prepared.booking.trainerComment,
+          })
+        : await this.googleCalendarService.createEvent({
+            trainingId: prepared.booking.training.id,
+            clientName: prepared.booking.client.fullName,
+            clientPhone: prepared.booking.client.phone,
+            clientUsername: prepared.booking.client.username,
+            clientTelegramId: prepared.booking.client.telegramId,
+            startAt: prepared.targetSlot.startAt,
+            endAt: prepared.targetSlot.endAt,
+            trainerComment: prepared.booking.trainerComment,
+          });
+    } catch (error) {
+      calendarSyncErrorMessage = (error as Error).message;
+    }
 
     try {
       return this.prismaService.$transaction(async (transaction) => {
@@ -820,7 +832,7 @@ export class BookingsService {
             endAt: freshTargetSlot.endAt,
             status: TrainingStatus.RESCHEDULED,
             cancelledAt: null,
-            calendarEventId: calendarSync.eventId,
+            calendarEventId: calendarSync?.eventId ?? prepared.booking.training?.calendarEventId ?? null,
           },
         });
 
@@ -840,13 +852,16 @@ export class BookingsService {
         await transaction.calendarSyncLog.create({
           data: {
             trainingId: freshBooking.training!.id,
-            operation: prepared.booking.training?.calendarEventId ? SyncOperation.UPDATE : SyncOperation.CREATE,
-            status: SyncStatus.SUCCESS,
-            externalEventId: calendarSync.eventId,
-            message: "Google Calendar event synced after client reschedule",
+            operation: calendarOperation,
+            status: calendarSync ? SyncStatus.SUCCESS : SyncStatus.FAILED,
+            externalEventId: calendarSync?.eventId ?? prepared.booking.training?.calendarEventId ?? null,
+            message: calendarSync
+              ? "Google Calendar event synced after client reschedule"
+              : (calendarSyncErrorMessage ?? "Google Calendar sync failed after client reschedule"),
             payload: {
               bookingId: freshBooking.id,
-              mode: calendarSync.mode,
+              mode: calendarSync?.mode ?? this.appConfigService.values.googleCalendarSyncMode,
+              degraded: !calendarSync,
             },
           },
         });
@@ -869,7 +884,7 @@ export class BookingsService {
         };
       });
     } catch (error) {
-      if (!prepared.booking.training.calendarEventId) {
+      if (calendarSync?.eventId && !prepared.booking.training.calendarEventId) {
         try {
           await this.googleCalendarService.cancelEvent({
             trainingId: prepared.booking.training.id,
@@ -908,16 +923,22 @@ export class BookingsService {
       return booking;
     });
 
-    const calendarSync = await this.googleCalendarService.createEvent({
-      trainingId: booking.id,
-      clientName: booking.client.fullName,
-      clientPhone: booking.client.phone,
-      clientUsername: booking.client.username,
-      clientTelegramId: booking.client.telegramId,
-      startAt: booking.slot.startAt,
-      endAt: booking.slot.endAt,
-      trainerComment: booking.trainerComment,
-    });
+    let calendarSync: Awaited<ReturnType<GoogleCalendarService["createEvent"]>> | null = null;
+    let calendarSyncErrorMessage: string | null = null;
+    try {
+      calendarSync = await this.googleCalendarService.createEvent({
+        trainingId: booking.id,
+        clientName: booking.client.fullName,
+        clientPhone: booking.client.phone,
+        clientUsername: booking.client.username,
+        clientTelegramId: booking.client.telegramId,
+        startAt: booking.slot.startAt,
+        endAt: booking.slot.endAt,
+        trainerComment: booking.trainerComment,
+      });
+    } catch (error) {
+      calendarSyncErrorMessage = (error as Error).message;
+    }
 
     try {
       const result = await this.prismaService.$transaction(async (transaction) => {
@@ -963,14 +984,14 @@ export class BookingsService {
             status: TrainingStatus.SCHEDULED,
             startAt: lockedBooking.slot.startAt,
             endAt: lockedBooking.slot.endAt,
-            calendarEventId: calendarSync.eventId,
+            calendarEventId: calendarSync?.eventId ?? null,
           },
           update: {
             slotId: lockedBooking.slotId,
             status: TrainingStatus.SCHEDULED,
             startAt: lockedBooking.slot.startAt,
             endAt: lockedBooking.slot.endAt,
-            calendarEventId: calendarSync.eventId,
+            calendarEventId: calendarSync?.eventId ?? null,
             cancelledAt: null,
           },
         });
@@ -984,12 +1005,15 @@ export class BookingsService {
             data: {
               trainingId: training.id,
               operation: SyncOperation.CREATE,
-              status: SyncStatus.SUCCESS,
-              externalEventId: calendarSync.eventId,
-              message: "Google Calendar event created on booking confirmation",
+              status: calendarSync ? SyncStatus.SUCCESS : SyncStatus.FAILED,
+              externalEventId: calendarSync?.eventId ?? null,
+              message: calendarSync
+                ? "Google Calendar event created on booking confirmation"
+                : (calendarSyncErrorMessage ?? "Google Calendar sync failed on booking confirmation"),
               payload: {
-                mode: calendarSync.mode,
+                mode: calendarSync?.mode ?? this.appConfigService.values.googleCalendarSyncMode,
                 bookingId: lockedBooking.id,
+                degraded: !calendarSync,
               },
             },
           });
@@ -1003,13 +1027,15 @@ export class BookingsService {
 
       return result;
     } catch (error) {
-      try {
+      if (calendarSync?.eventId) {
+        try {
         await this.googleCalendarService.cancelEvent({
           trainingId: booking.id,
           eventId: calendarSync.eventId,
         });
-      } catch {
-        // No-op: best effort cleanup for orphan calendar event.
+        } catch {
+          // No-op: best effort cleanup for orphan calendar event.
+        }
       }
       throw error;
     }
@@ -1324,9 +1350,12 @@ export class BookingsService {
     }
 
     const proposedEndAt = new Date(proposedStartAt.getTime() + HOUR_MS);
+    const calendarOperation = booking.training?.calendarEventId ? SyncOperation.UPDATE : SyncOperation.CREATE;
     let calendarSync:
       | Awaited<ReturnType<GoogleCalendarService["createEvent"]>>
-      | Awaited<ReturnType<GoogleCalendarService["updateEvent"]>>;
+      | Awaited<ReturnType<GoogleCalendarService["updateEvent"]>>
+      | null = null;
+    let calendarSyncErrorMessage: string | null = null;
     try {
       calendarSync = booking.training?.calendarEventId
         ? await this.googleCalendarService.updateEvent(booking.training.calendarEventId, {
@@ -1350,21 +1379,8 @@ export class BookingsService {
             trainerComment: booking.trainerComment,
           });
     } catch (error) {
-      if (booking.training?.id) {
-        const normalizedError = error as Error;
-        await this.logCalendarSyncFailure({
-          trainingId: booking.training.id,
-          operation: booking.training.calendarEventId ? SyncOperation.UPDATE : SyncOperation.CREATE,
-          externalEventId: booking.training.calendarEventId,
-          message: normalizedError.message,
-          payload: {
-            bookingId: booking.id,
-            source: "acceptProposedBookingTime",
-          },
-        });
-      }
-
-      throw error;
+      calendarSync = null;
+      calendarSyncErrorMessage = (error as Error).message;
     }
 
     return this.prismaService.$transaction(async (transaction) => {
@@ -1437,7 +1453,7 @@ export class BookingsService {
           status: TrainingStatus.RESCHEDULED,
           startAt: proposedStartAt,
           endAt: proposedEndAt,
-          calendarEventId: calendarSync.eventId,
+          calendarEventId: calendarSync?.eventId ?? freshBooking.training?.calendarEventId ?? null,
         },
         update: {
           slotId: targetSlot.id,
@@ -1445,7 +1461,7 @@ export class BookingsService {
           endAt: proposedEndAt,
           status: TrainingStatus.RESCHEDULED,
           cancelledAt: null,
-          calendarEventId: calendarSync.eventId,
+          calendarEventId: calendarSync?.eventId ?? freshBooking.training?.calendarEventId ?? null,
         },
       });
 
@@ -1471,13 +1487,16 @@ export class BookingsService {
         await transaction.calendarSyncLog.create({
           data: {
             trainingId: persistedTraining.id,
-            operation: freshBooking.training?.calendarEventId ? SyncOperation.UPDATE : SyncOperation.CREATE,
-            status: SyncStatus.SUCCESS,
-            externalEventId: calendarSync.eventId,
-            message: "Google Calendar event synced after client accepted proposal",
+            operation: calendarOperation,
+            status: calendarSync ? SyncStatus.SUCCESS : SyncStatus.FAILED,
+            externalEventId: calendarSync?.eventId ?? freshBooking.training?.calendarEventId ?? null,
+            message: calendarSync
+              ? "Google Calendar event synced after client accepted proposal"
+              : (calendarSyncErrorMessage ?? "Google Calendar sync failed after client accepted proposal"),
             payload: {
-              mode: calendarSync.mode,
+              mode: calendarSync?.mode ?? this.appConfigService.values.googleCalendarSyncMode,
               bookingId: freshBooking.id,
+              degraded: !calendarSync,
             },
           },
         });

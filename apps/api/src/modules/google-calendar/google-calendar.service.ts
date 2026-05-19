@@ -1,5 +1,6 @@
 ﻿import { ConflictException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { createSign } from "node:crypto";
+import { readFile } from "node:fs/promises";
 
 import { createRuntimeLogger } from "../../common/logging/runtime-logger";
 import { AppConfigService } from "../../config/app-config.service";
@@ -36,6 +37,11 @@ interface CancelEventInput {
   eventId: string;
 }
 
+interface GoogleServiceAccountJsonPayload {
+  client_email?: string;
+  private_key?: string;
+}
+
 interface CalendarApiErrorPayload {
   error?: {
     code?: number;
@@ -67,6 +73,7 @@ export class GoogleCalendarService {
   });
 
   private cachedAccessToken: { value: string; expiresAtMs: number } | null = null;
+  private cachedCredentials: { email: string; privateKey: string } | null = null;
 
   constructor(private readonly appConfigService: AppConfigService) {}
 
@@ -177,17 +184,28 @@ export class GoogleCalendarService {
     return rawMode === "mock" ? "mock" : "real";
   }
 
-  private ensureGoogleCredentials(): { email: string; privateKey: string } {
+  private async ensureGoogleCredentials(): Promise<{ email: string; privateKey: string }> {
+    if (this.cachedCredentials) {
+      return this.cachedCredentials;
+    }
+
+    const jsonPath = this.appConfigService.values.googleServiceAccountJsonPath.trim();
+    if (jsonPath) {
+      this.cachedCredentials = await this.loadGoogleCredentialsFromJsonFile(jsonPath);
+      return this.cachedCredentials;
+    }
+
     const email = this.appConfigService.values.googleServiceAccountEmail.trim();
     const privateKey = this.appConfigService.values.googlePrivateKey.replaceAll("\\n", "\n").trim();
 
     if (!email || !privateKey) {
       throw new ServiceUnavailableException(
-        "Google Calendar credentials are not configured (GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY)",
+        "Google Calendar credentials are not configured (GOOGLE_SERVICE_ACCOUNT_JSON_PATH or GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY)",
       );
     }
 
-    return { email, privateKey };
+    this.cachedCredentials = { email, privateKey };
+    return this.cachedCredentials;
   }
 
   private async getAccessToken(): Promise<string> {
@@ -196,7 +214,7 @@ export class GoogleCalendarService {
       return this.cachedAccessToken.value;
     }
 
-    const { email, privateKey } = this.ensureGoogleCredentials();
+    const { email, privateKey } = await this.ensureGoogleCredentials();
     const jwtAssertion = this.buildSignedJwt(email, privateKey);
 
     const body = new URLSearchParams({
@@ -263,6 +281,40 @@ export class GoogleCalendarService {
     const signature = signer.sign(privateKey, "base64url");
 
     return `${unsignedJwt}.${signature}`;
+  }
+
+  private async loadGoogleCredentialsFromJsonFile(
+    jsonPath: string,
+  ): Promise<{ email: string; privateKey: string }> {
+    let rawJson: string;
+    try {
+      rawJson = await readFile(jsonPath, "utf8");
+    } catch (error) {
+      const normalizedError = error as Error;
+      throw new ServiceUnavailableException(
+        `Google service account JSON could not be read from ${jsonPath}: ${normalizedError.message}`,
+      );
+    }
+
+    let payload: GoogleServiceAccountJsonPayload;
+    try {
+      payload = JSON.parse(rawJson) as GoogleServiceAccountJsonPayload;
+    } catch (error) {
+      const normalizedError = error as Error;
+      throw new ServiceUnavailableException(
+        `Google service account JSON is invalid at ${jsonPath}: ${normalizedError.message}`,
+      );
+    }
+
+    const email = payload.client_email?.trim() ?? "";
+    const privateKey = payload.private_key?.replaceAll("\\n", "\n").trim() ?? "";
+    if (!email || !privateKey) {
+      throw new ServiceUnavailableException(
+        `Google service account JSON at ${jsonPath} does not contain client_email/private_key`,
+      );
+    }
+
+    return { email, privateKey };
   }
 
   private async requestCalendar<T>(options: {

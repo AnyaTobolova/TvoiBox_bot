@@ -7,7 +7,7 @@ COMPOSE_FILE="deploy/compose.server.yml"
 cd "$ROOT_DIR"
 
 if [[ ! -f ".env.server" ]]; then
-  echo "Файл .env.server не найден. Скопируй .env.server.example в .env.server и заполни секреты."
+  echo "Missing .env.server. Copy .env.server.example to .env.server and fill in the secrets."
   exit 1
 fi
 
@@ -15,21 +15,21 @@ STACK_NAME="$(grep -E '^STACK_NAME=' .env.server | head -n 1 | cut -d '=' -f 2- 
 API_PORT_VALUE="$(grep -E '^API_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
 
 if [[ -z "${STACK_NAME}" ]]; then
-  echo "В .env.server не задан STACK_NAME."
+  echo "STACK_NAME is not set in .env.server."
   exit 1
 fi
 
-echo "[$STACK_NAME] Поднимаю PostgreSQL..."
+echo "[$STACK_NAME] Starting PostgreSQL..."
 docker compose --env-file .env.server -f "$COMPOSE_FILE" up -d postgres
 
-echo "[$STACK_NAME] Собираю образы приложения..."
+echo "[$STACK_NAME] Building application images..."
 docker compose --env-file .env.server -f "$COMPOSE_FILE" build migrate api bot
 
-echo "[$STACK_NAME] Применяю Prisma-схему..."
+echo "[$STACK_NAME] Applying Prisma schema..."
 docker compose --env-file .env.server -f "$COMPOSE_FILE" run --rm migrate
 
-echo "[$STACK_NAME] Запускаю API и бота..."
+echo "[$STACK_NAME] Starting API and bot..."
 docker compose --env-file .env.server -f "$COMPOSE_FILE" up -d api bot
 
-echo "Стек ${STACK_NAME} запущен."
-echo "Проверка API: curl http://127.0.0.1:${API_PORT_VALUE:-3300}/health"
+echo "Stack ${STACK_NAME} is running."
+echo "API check: curl http://127.0.0.1:${API_PORT_VALUE:-3300}/health"

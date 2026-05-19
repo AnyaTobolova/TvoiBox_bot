@@ -9,14 +9,20 @@ $watchdogDir = Join-Path $rootPath "logs\watchdog"
 $logPath = Join-Path $watchdogDir "runtime.log"
 $statePath = Join-Path $watchdogDir "state.json"
 $managerPidPath = Join-Path $watchdogDir "manager.pid"
+$composePath = Join-Path $rootPath "docker-compose.yml"
+$dockerHelpersPath = Join-Path $PSScriptRoot "docker-helpers.ps1"
+$postgresRunnerPath = Join-Path $PSScriptRoot "postgres-runner.ps1"
 $postgresBinDir = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin"
-$postgresExePath = Join-Path $postgresBinDir "postgres.exe"
+$postgresCtlPath = Join-Path $postgresBinDir "pg_ctl.exe"
 $postgresReadyPath = Join-Path $postgresBinDir "pg_isready.exe"
 $postgresDataPath = Join-Path $rootPath ".tools\postgres\data"
 $postgresLogPath = Join-Path $rootPath ".tools\postgres\postgres.log"
 $postmasterPidPath = Join-Path $postgresDataPath "postmaster.pid"
 
+. $dockerHelpersPath
+
 New-Item -ItemType Directory -Path $watchdogDir -Force | Out-Null
+Initialize-DockerClient -RootPath $rootPath
 Set-Location $rootPath
 
 function Write-WatchdogLog {
@@ -85,6 +91,29 @@ function Test-PostgresReady {
   return $LASTEXITCODE -eq 0
 }
 
+function Test-DockerAvailable {
+  return (Get-DockerDaemonStatus).daemonAvailable
+}
+
+function Start-DockerPostgres {
+  $dockerStatus = Get-DockerDaemonStatus
+  if (-not $dockerStatus.daemonAvailable) {
+    return $false
+  }
+
+  & $dockerStatus.cliPath compose -f $composePath up -d postgres *> $null
+  return $LASTEXITCODE -eq 0
+}
+
+function Test-PostgresRunning {
+  if (-not (Test-Path -LiteralPath $postgresCtlPath)) {
+    return $false
+  }
+
+  & $postgresCtlPath status -D "$postgresDataPath" *> $null
+  return $LASTEXITCODE -eq 0
+}
+
 function Read-PostgresPidFromPidFile {
   if (-not (Test-Path -LiteralPath $postmasterPidPath)) {
     return $null
@@ -112,7 +141,7 @@ function Remove-StalePostmasterPid {
     return
   }
 
-  if (Test-ProcessAlive -ProcessId $postgresPid) {
+  if ((Test-ProcessAlive -ProcessId $postgresPid) -or (Test-PostgresRunning)) {
     return
   }
 
@@ -120,26 +149,18 @@ function Remove-StalePostmasterPid {
 }
 
 function Start-PostgresProcess {
-  if (-not (Test-Path -LiteralPath $postgresExePath)) {
-    throw "Portable PostgreSQL executable not found: $postgresExePath"
+  if (-not (Test-Path -LiteralPath $postgresRunnerPath)) {
+    throw "Portable PostgreSQL runner not found: $postgresRunnerPath"
   }
 
   Remove-StalePostmasterPid
 
-  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-  $startInfo.FileName = $postgresExePath
-  $startInfo.Arguments = "-D `"$postgresDataPath`""
-  $startInfo.WorkingDirectory = $postgresBinDir
-  $startInfo.UseShellExecute = $false
-  $startInfo.CreateNoWindow = $true
-  $startInfo.RedirectStandardOutput = $true
-  $startInfo.RedirectStandardError = $true
-
-  $process = New-Object System.Diagnostics.Process
-  $process.StartInfo = $startInfo
-  [void]$process.Start()
-  $process.BeginOutputReadLine()
-  $process.BeginErrorReadLine()
+  $process = Start-Process `
+    -FilePath "powershell.exe" `
+    -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $postgresRunnerPath) `
+    -WorkingDirectory $rootPath `
+    -WindowStyle Hidden `
+    -PassThru
 
   return $process.Id
 }
@@ -149,14 +170,38 @@ function Ensure-PostgresReady {
     return
   }
 
-  Write-WatchdogLog "PostgreSQL is down, attempting restart"
-  $startedPid = Start-PostgresProcess
+  $dockerStatus = Get-DockerDaemonStatus
+  if ($dockerStatus.daemonAvailable) {
+    Write-WatchdogLog "PostgreSQL is down, attempting docker compose up -d postgres"
+    if (-not (Start-DockerPostgres)) {
+      throw "Docker PostgreSQL failed to start via docker compose."
+    }
+  }
+  elseif ($dockerStatus.cliAvailable) {
+    throw (Get-DockerUnavailableMessage -DockerStatus $dockerStatus)
+  }
+  elseif (-not (Test-PostgresRunning)) {
+    Write-WatchdogLog "PostgreSQL is down, attempting restart"
+  }
+  else {
+    Write-WatchdogLog "PostgreSQL process detected but not ready, waiting for readiness"
+  }
+
+  $startedPid = $null
+  if (-not $dockerStatus.cliAvailable -and -not (Test-PostgresRunning)) {
+    $startedPid = Start-PostgresProcess
+  }
 
   for ($attempt = 0; $attempt -lt 15; $attempt++) {
     Start-Sleep -Seconds 1
 
     if (Test-PostgresReady) {
-      Write-WatchdogLog ("PostgreSQL restarted successfully, pid={0}" -f $startedPid)
+      if ($startedPid) {
+        Write-WatchdogLog ("PostgreSQL restarted successfully, pid={0}" -f $startedPid)
+      }
+      else {
+        Write-WatchdogLog "PostgreSQL became ready without restart"
+      }
       return
     }
   }

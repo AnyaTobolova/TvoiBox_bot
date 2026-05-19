@@ -3,6 +3,7 @@ dist/
 .next/
 .turbo/
 .tools/
+.secrets/
 .env
 .env.server
 .env.local

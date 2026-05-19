@@ -42,6 +42,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env.server
+    environment:
+      GOOGLE_SERVICE_ACCOUNT_JSON_PATH: ${GOOGLE_SERVICE_ACCOUNT_JSON_PATH:-/run/secrets/google-service-account.json}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,6 +61,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    volumes:
+      - ${GOOGLE_SERVICE_ACCOUNT_JSON_SOURCE:-../.secrets/google-service-account.json}:${GOOGLE_SERVICE_ACCOUNT_JSON_PATH:-/run/secrets/google-service-account.json}:ro
     networks:
       - internal
 
@@ -72,6 +76,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    ports:
+      - "${BOT_BIND_IP:-127.0.0.1}:${BOT_PORT:-3301}:${BOT_WEBHOOK_PORT:-8081}"
     networks:
       - internal
 

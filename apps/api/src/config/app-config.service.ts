@@ -76,6 +76,7 @@ export interface ApiRuntimeConfig {
   googleCalendarId: string;
   googleServiceAccountEmail: string;
   googlePrivateKey: string;
+  googleServiceAccountJsonPath: string;
   googleCalendarSyncMode: CalendarSyncMode;
 }
 
@@ -96,6 +97,7 @@ export function getApiRuntimeConfig(): ApiRuntimeConfig {
     googleCalendarId: getOptionalEnv("GOOGLE_CALENDAR_ID", "primary"),
     googleServiceAccountEmail: getOptionalEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", ""),
     googlePrivateKey: getOptionalEnv("GOOGLE_PRIVATE_KEY", ""),
+    googleServiceAccountJsonPath: getOptionalEnv("GOOGLE_SERVICE_ACCOUNT_JSON_PATH", ""),
     googleCalendarSyncMode: getOptionalEnv("GOOGLE_CALENDAR_SYNC_MODE", "real") as CalendarSyncMode,
   };
 }
