@@ -7,6 +7,7 @@
     "dev": "corepack pnpm dev:api",
     "dev:api": "corepack pnpm --filter @tvoy-box/api dev",
     "dev:bot": "corepack pnpm --filter @tvoy-box/bot dev",
+    "dev:mini-app": "corepack pnpm --filter @tvoy-box/mini-app dev",
     "dev:db:up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/db-up.ps1",
     "dev:db:down": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/db-down.ps1",
     "dev:db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/db-status.ps1",

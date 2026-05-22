@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable } from "@nestjs/common";
-import { SlotStatus } from "@prisma/client";
+import { BookingStatus, Prisma, SlotStatus, TrainingStatus } from "@prisma/client";
 
 import { AppConfigService } from "../../config/app-config.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -81,6 +81,11 @@ const moscowDateFormatter = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
+const moscowWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: MOSCOW_TIME_ZONE,
+  weekday: "long",
+});
+
 @Injectable()
 export class SlotsService {
   constructor(
@@ -126,8 +131,11 @@ export class SlotsService {
         }
 
         if (existing.status === SlotStatus.BOOKED) {
-          skippedBooked += 1;
-          continue;
+          const hasActiveOccupation = await this.hasActiveOccupation(transaction, existing.id);
+          if (hasActiveOccupation) {
+            skippedBooked += 1;
+            continue;
+          }
         }
 
         if (existing.status === SlotStatus.OPEN) {
@@ -302,7 +310,6 @@ export class SlotsService {
     if (endAt.getTime() <= startAt.getTime()) {
       throw new BadRequestException("endAt must be greater than startAt");
     }
-
     const result = await this.prismaService.slot.updateMany({
       where: {
         startAt: {
@@ -323,6 +330,31 @@ export class SlotsService {
     return {
       reopened: result.count,
     };
+  }
+
+  private async hasActiveOccupation(transaction: Prisma.TransactionClient, slotId: string): Promise<boolean> {
+    const [activeBooking, activeTraining] = await Promise.all([
+      transaction.booking.findFirst({
+        where: {
+          slotId,
+          status: {
+            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RESCHEDULED],
+          },
+        },
+        select: { id: true },
+      }),
+      transaction.training.findFirst({
+        where: {
+          slotId,
+          status: {
+            in: [TrainingStatus.SCHEDULED, TrainingStatus.RESCHEDULED],
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    return Boolean(activeBooking || activeTraining);
   }
 
   async getAvailableSlots(input: GetAvailableSlotsInput): Promise<SlotDto[]> {
@@ -396,6 +428,10 @@ export class SlotsService {
         continue;
       }
 
+      if (!this.isWithinWorkingSchedule(startAt, settings)) {
+        continue;
+      }
+
       if (settings.sameDayBookingCutoff <= 0) {
         // no-op
       } else {
@@ -439,6 +475,7 @@ export class SlotsService {
       throw new BadRequestException("Range is too large");
     }
 
+    const settings = await this.ensureTrainerSettings();
     const explicitSlots = await this.prismaService.slot.findMany({
       where: {
         startAt: {
@@ -463,8 +500,17 @@ export class SlotsService {
       const key = this.getSlotKey(startAt, endAt);
       const explicit = explicitSlotsByKey.get(key);
 
+      if (!this.isWithinWorkingSchedule(startAt, settings)) {
+        continue;
+      }
+
       if (explicit) {
-        result.push(this.toSlotDto(explicit));
+        result.push({
+          id: explicit.id,
+          startAt: explicit.startAt.toISOString(),
+          endAt: explicit.endAt.toISOString(),
+          status: explicit.status === SlotStatus.OPEN ? SlotStatus.OPEN : SlotStatus.CLOSED,
+        });
         continue;
       }
 
@@ -617,8 +663,14 @@ export class SlotsService {
   }
 
   private ensureTrainerAccess(trainerTelegramId: string): void {
-    if (trainerTelegramId.trim() !== this.appConfigService.values.trainerTelegramId) {
-      throw new ForbiddenException("Only trainer can manage slots");
+    const actorId = trainerTelegramId.trim();
+    const allowed = new Set([
+      this.appConfigService.values.trainerTelegramId,
+      this.appConfigService.values.adminTelegramId,
+    ]);
+
+    if (!allowed.has(actorId)) {
+      throw new ForbiddenException("Only trainer/admin can manage slots");
     }
   }
 
@@ -683,8 +735,38 @@ export class SlotsService {
       data: {
         bookingHorizonDays: 14,
         sameDayBookingCutoff: 0,
+        workingDays: ["monday", "wednesday", "friday"],
+        workdayStartHour: 8,
+        workdayEndHour: 22,
       },
     });
+  }
+
+  private isWithinWorkingSchedule(
+    date: Date,
+    settings: {
+      workingDays: string[];
+      workdayStartHour: number;
+      workdayEndHour: number;
+    },
+  ): boolean {
+    const weekday = moscowWeekdayFormatter.format(date).toLowerCase();
+    if (!settings.workingDays.includes(weekday)) {
+      return false;
+    }
+
+    const localHour = this.getMoscowHour(date);
+    return localHour >= settings.workdayStartHour && localHour < settings.workdayEndHour;
+  }
+
+  private getMoscowHour(date: Date): number {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: MOSCOW_TIME_ZONE,
+      hour: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+
+    return Number(parts.find((part) => part.type === "hour")?.value ?? "0");
   }
 
   private getMoscowDateKey(date: Date): string {

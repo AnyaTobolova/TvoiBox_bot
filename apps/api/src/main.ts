@@ -37,6 +37,24 @@ async function bootstrap() {
       bufferLogs: false,
     });
 
+    const corsOriginDelegate = (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
+        if (!origin || config.miniAppAllowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
+    };
+
+    app.enableCors({
+      origin: corsOriginDelegate,
+      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    });
+
     await app.listen(config.port, config.host);
 
     bootstrapLogger.info("API started successfully", {

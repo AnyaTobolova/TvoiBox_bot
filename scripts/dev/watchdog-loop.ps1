@@ -40,6 +40,7 @@ function Read-State {
     return [ordered]@{
       apiPid = $null
       botPid = $null
+      miniAppPid = $null
     }
   }
 
@@ -51,6 +52,7 @@ function Read-State {
     return [ordered]@{
       apiPid = $null
       botPid = $null
+      miniAppPid = $null
     }
   }
 }
@@ -177,9 +179,6 @@ function Ensure-PostgresReady {
       throw "Docker PostgreSQL failed to start via docker compose."
     }
   }
-  elseif ($dockerStatus.cliAvailable) {
-    throw (Get-DockerUnavailableMessage -DockerStatus $dockerStatus)
-  }
   elseif (-not (Test-PostgresRunning)) {
     Write-WatchdogLog "PostgreSQL is down, attempting restart"
   }
@@ -188,7 +187,7 @@ function Ensure-PostgresReady {
   }
 
   $startedPid = $null
-  if (-not $dockerStatus.cliAvailable -and -not (Test-PostgresRunning)) {
+  if (-not $dockerStatus.daemonAvailable -and -not (Test-PostgresRunning)) {
     $startedPid = Start-PostgresProcess
   }
 
@@ -249,38 +248,52 @@ function Find-BotProcessId {
   return $null
 }
 
+function Find-MiniAppProcessId {
+  try {
+    $connection = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction Stop |
+      Select-Object -First 1
+
+    if ($null -ne $connection -and $connection.OwningProcess) {
+      return [int]$connection.OwningProcess
+    }
+  }
+  catch {
+    return $null
+  }
+
+  return $null
+}
+
 function Start-ServiceProcess {
   param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("api", "bot")]
+    [ValidateSet("api", "bot", "mini-app")]
     [string]$Name
   )
 
   $command = switch ($Name) {
     "api" {
-      "node --env-file=../../.env dist/main.js"
+      "corepack pnpm dev:api"
     }
     "bot" {
-      "node --env-file=../../.env dist/main.js"
+      "corepack pnpm dev:bot"
+    }
+    "mini-app" {
+      "corepack pnpm dev:mini-app"
     }
   }
-  $workingDirectory = switch ($Name) {
-    "api" { Join-Path $rootPath "apps\api" }
-    "bot" { Join-Path $rootPath "apps\bot" }
-  }
+  $workingDirectory = $rootPath
 
   $stdoutPath = Join-Path $watchdogDir ("{0}.stdout.log" -f $Name)
   $stderrPath = Join-Path $watchdogDir ("{0}.stderr.log" -f $Name)
-  $wrappedCommand = "$command >> `"$stdoutPath`" 2>> `"$stderrPath`""
+  $wrappedCommand = "Set-Location `"$workingDirectory`"; $command *> `"$stdoutPath`" 2> `"$stderrPath`""
 
-  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-  $startInfo.FileName = "cmd.exe"
-  $startInfo.Arguments = "/c $wrappedCommand"
-  $startInfo.WorkingDirectory = $workingDirectory
-  $startInfo.UseShellExecute = $false
-  $startInfo.CreateNoWindow = $true
-
-  $process = [System.Diagnostics.Process]::Start($startInfo)
+  $process = Start-Process `
+    -FilePath "powershell.exe" `
+    -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $wrappedCommand) `
+    -WorkingDirectory $workingDirectory `
+    -WindowStyle Hidden `
+    -PassThru
 
   Write-WatchdogLog ("Started {0} process, pid={1}" -f $Name, $process.Id)
   return $process.Id
@@ -312,6 +325,16 @@ try {
       }
       else {
         $state.botPid = Start-ServiceProcess -Name "bot"
+      }
+    }
+
+    if (-not (Test-ProcessAlive -ProcessId $state.miniAppPid)) {
+      $existingMiniAppPid = Find-MiniAppProcessId
+      if ($existingMiniAppPid -and (Test-ProcessAlive -ProcessId $existingMiniAppPid)) {
+        $state.miniAppPid = $existingMiniAppPid
+      }
+      else {
+        $state.miniAppPid = Start-ServiceProcess -Name "mini-app"
       }
     }
 

@@ -4,7 +4,7 @@ export interface ClientProfile {
   username: string | null;
   fullName: string;
   phone: string | null;
-  consentAcceptedAt: string;
+  consentAcceptedAt: string | null;
   isBlacklisted: boolean;
   blacklistReason?: string | null;
   blacklistedAt?: string | null;

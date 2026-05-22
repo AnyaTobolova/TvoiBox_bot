@@ -63,6 +63,23 @@ function getNumberEnv(
   return parsed;
 }
 
+function getStringListEnv(
+  name: string,
+  fallback: string[],
+  source: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const rawValue = source[name]?.trim();
+
+  if (!rawValue) {
+    return fallback;
+  }
+
+  return rawValue
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export interface ApiRuntimeConfig {
   name: string;
   host: string;
@@ -73,16 +90,26 @@ export interface ApiRuntimeConfig {
   nodeEnv: RuntimeMode;
   adminTelegramId: string;
   trainerTelegramId: string;
+  telegramBotToken: string;
   googleCalendarId: string;
   googleServiceAccountEmail: string;
   googlePrivateKey: string;
   googleServiceAccountJsonPath: string;
   googleCalendarSyncMode: CalendarSyncMode;
+  miniAppAuthSecret: string;
+  miniAppAllowedOrigins: string[];
 }
 
 export function getApiRuntimeConfig(): ApiRuntimeConfig {
   const adminTelegramId = getRequiredEnv("ADMIN_TELEGRAM_ID");
   const trainerTelegramId = getTelegramIdEnv("TRAINER_TELEGRAM_ID", adminTelegramId);
+  const telegramBotToken = getRequiredEnv("TELEGRAM_BOT_TOKEN");
+  const publicAppDomain = process.env.PUBLIC_APP_DOMAIN?.trim();
+  const defaultMiniAppOrigins = [
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    ...(publicAppDomain ? [`https://${publicAppDomain}`] : []),
+  ];
 
   return {
     name: getOptionalEnv("APP_NAME", "tvoy-box-training-scheduler"),
@@ -94,11 +121,14 @@ export function getApiRuntimeConfig(): ApiRuntimeConfig {
     nodeEnv: getOptionalEnv("NODE_ENV", "development") as RuntimeMode,
     adminTelegramId,
     trainerTelegramId,
+    telegramBotToken,
     googleCalendarId: getOptionalEnv("GOOGLE_CALENDAR_ID", "primary"),
     googleServiceAccountEmail: getOptionalEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", ""),
     googlePrivateKey: getOptionalEnv("GOOGLE_PRIVATE_KEY", ""),
     googleServiceAccountJsonPath: getOptionalEnv("GOOGLE_SERVICE_ACCOUNT_JSON_PATH", ""),
     googleCalendarSyncMode: getOptionalEnv("GOOGLE_CALENDAR_SYNC_MODE", "real") as CalendarSyncMode,
+    miniAppAuthSecret: getOptionalEnv("MINI_APP_AUTH_SECRET", telegramBotToken),
+    miniAppAllowedOrigins: getStringListEnv("MINI_APP_ALLOWED_ORIGINS", defaultMiniAppOrigins),
   };
 }
 

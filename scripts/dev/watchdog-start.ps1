@@ -133,9 +133,6 @@ function Start-PostgresIfNeeded {
       throw "Docker PostgreSQL failed to start via docker compose."
     }
   }
-  elseif ($dockerStatus.cliAvailable) {
-    throw (Get-DockerUnavailableMessage -DockerStatus $dockerStatus)
-  }
   elseif (-not (Test-PostgresRunning)) {
     $null = Start-PostgresProcess
   }

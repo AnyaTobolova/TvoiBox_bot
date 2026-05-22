@@ -23,13 +23,15 @@ echo "[$STACK_NAME] Starting PostgreSQL..."
 docker compose --env-file .env.server -f "$COMPOSE_FILE" up -d postgres
 
 echo "[$STACK_NAME] Building application images..."
-docker compose --env-file .env.server -f "$COMPOSE_FILE" build migrate api bot
+docker compose --env-file .env.server -f "$COMPOSE_FILE" build migrate api mini-app bot
 
 echo "[$STACK_NAME] Applying Prisma schema..."
 docker compose --env-file .env.server -f "$COMPOSE_FILE" run --rm migrate
 
-echo "[$STACK_NAME] Starting API and bot..."
-docker compose --env-file .env.server -f "$COMPOSE_FILE" up -d api bot
+echo "[$STACK_NAME] Starting API, mini app and bot..."
+docker compose --env-file .env.server -f "$COMPOSE_FILE" up -d api mini-app bot
 
 echo "Stack ${STACK_NAME} is running."
 echo "API check: curl http://127.0.0.1:${API_PORT_VALUE:-3300}/health"
+MINI_APP_PORT_VALUE="$(grep -E '^MINI_APP_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
+echo "Mini app check: curl http://127.0.0.1:${MINI_APP_PORT_VALUE:-3302}/"

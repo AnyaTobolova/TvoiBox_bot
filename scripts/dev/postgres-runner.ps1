@@ -6,10 +6,11 @@ chcp 65001 > $null
 
 $rootPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $postgresBinDir = Join-Path $rootPath ".tools\postgres\dist\pgsql\bin"
-$postgresExePath = Join-Path $postgresBinDir "postgres.exe"
+$postgresCtlPath = Join-Path $postgresBinDir "pg_ctl.exe"
 $postgresDataPath = Join-Path $rootPath ".tools\postgres\data"
+$postgresLogPath = Join-Path $rootPath ".tools\postgres\postgres.log"
 
 Set-Location $postgresBinDir
 
-& $postgresExePath -D $postgresDataPath
+& $postgresCtlPath -D $postgresDataPath -l $postgresLogPath start -w
 exit $LASTEXITCODE

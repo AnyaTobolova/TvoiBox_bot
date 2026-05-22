@@ -68,8 +68,9 @@ model Client {
   username          String?
   fullName          String
   phone             String?
+  note              String?
   role              UserRole             @default(CLIENT)
-  consentAcceptedAt DateTime
+  consentAcceptedAt DateTime?
   isBlacklisted     Boolean              @default(false)
   blacklistReason   String?
   blacklistedAt     DateTime?
@@ -134,7 +135,7 @@ model Booking {
 model Training {
   id                    String            @id @default(cuid())
   clientId              String
-  slotId                String            @unique
+  slotId                String
   bookingId             String            @unique
   status                TrainingStatus    @default(SCHEDULED)
   startAt               DateTime
@@ -151,6 +152,7 @@ model Training {
   syncLogs              CalendarSyncLog[]
 
   @@index([clientId, status])
+  @@index([slotId])
   @@index([startAt, status])
   @@map("trainings")
 }
@@ -198,6 +200,9 @@ model TrainerSettings {
   id                   String   @id @default(cuid())
   bookingHorizonDays   Int      @default(14)
   sameDayBookingCutoff Int      @default(0)
+  workingDays          String[] @default(["monday", "wednesday", "friday"])
+  workdayStartHour     Int      @default(8)
+  workdayEndHour       Int      @default(22)
   startMessage         String?
   infoMessage          String?
   createdAt            DateTime @default(now())

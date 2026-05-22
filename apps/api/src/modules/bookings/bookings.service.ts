@@ -166,6 +166,7 @@ export interface ClientTrainingDto {
   trainingStatus: TrainingStatus | null;
   startAt: string;
   endAt: string;
+  clientCalendarIcsUrl: string | null;
   trainerComment: string | null;
   clientComment: string | null;
   canCancel: boolean;
@@ -176,6 +177,46 @@ export interface ClientTrainingDto {
 export interface ClientTrainingsResult {
   status: "ok";
   items: ClientTrainingDto[];
+}
+
+export interface ClientTrainingCalendarFileResult {
+  filename: string;
+  content: string;
+}
+
+export interface GetTrainerTrainingsInput {
+  trainerTelegramId: string;
+  from?: string;
+  to?: string;
+}
+
+export interface TrainerTrainingDto {
+  bookingId: string;
+  trainingId: string;
+  bookingStatus: BookingStatus;
+  trainingStatus: TrainingStatus;
+  startAt: string;
+  endAt: string;
+  clientCalendarIcsUrl: string | null;
+  trainerComment: string | null;
+  clientComment: string | null;
+  client: {
+    id: string;
+    telegramId: string;
+    fullName: string;
+    username: string | null;
+    phone: string | null;
+    note: string | null;
+    isBlacklisted: boolean;
+  };
+  canCancel: boolean;
+  canReschedule: boolean;
+  canResyncCalendar: boolean;
+}
+
+export interface TrainerTrainingsResult {
+  status: "ok";
+  items: TrainerTrainingDto[];
 }
 
 interface RescheduledBookingWithRelations {
@@ -441,9 +482,12 @@ export class BookingsService {
           AND "trainerArchivedAt" IS NOT NULL
       `;
 
-      if (archivedRows.length > 0) {
-        throw new ConflictException("Booking is already archived for trainer");
-      }
+        if (archivedRows.length > 0) {
+          return {
+            status: "archived" as const,
+            booking: this.toPendingBookingDto(booking),
+          };
+        }
 
       await transaction.$executeRaw`
         UPDATE "bookings"
@@ -486,6 +530,7 @@ export class BookingsService {
           training: {
             select: {
               status: true,
+              clientCalendarIcsUrl: true,
             },
           },
         },
@@ -512,11 +557,7 @@ export class BookingsService {
         const isPast = booking.slot.endAt.getTime() <= now.getTime();
         const trainingCancelled = booking.training?.status === TrainingStatus.CANCELLED;
         const canManage = booking.status === BookingStatus.CONFIRMED && isFuture && !trainingCancelled;
-        const canDelete =
-          booking.status === BookingStatus.CANCELLED
-          || booking.status === BookingStatus.REJECTED
-          || booking.status === BookingStatus.EXPIRED
-          || isPast;
+        const canDelete = true;
 
         return {
           bookingId: booking.id,
@@ -524,6 +565,7 @@ export class BookingsService {
           trainingStatus: booking.training?.status ?? null,
           startAt: booking.slot.startAt.toISOString(),
           endAt: booking.slot.endAt.toISOString(),
+          clientCalendarIcsUrl: booking.training?.clientCalendarIcsUrl ?? null,
           trainerComment: booking.trainerComment,
           clientComment: booking.clientComment,
           canCancel: canManage,
@@ -548,6 +590,87 @@ export class BookingsService {
       return {
         status: "ok" as const,
         items,
+      };
+    });
+  }
+
+  async getTrainerTrainings(input: GetTrainerTrainingsInput): Promise<TrainerTrainingsResult> {
+    this.ensureAdminAccess(input.trainerTelegramId);
+
+    const now = new Date();
+    const from = input.from?.trim() ? this.parseIsoDate("from", input.from) : now;
+    const to = input.to?.trim() ? this.parseIsoDate("to", input.to) : new Date(from.getTime() + 31 * DAY_MS);
+
+    if (to.getTime() <= from.getTime()) {
+      throw new BadRequestException("to must be greater than from");
+    }
+
+    if (to.getTime() - from.getTime() > 93 * DAY_MS) {
+      throw new BadRequestException("Range is too large");
+    }
+
+    return this.prismaService.$transaction(async (transaction) => {
+      await this.releaseExpiredPendingBookings(transaction, now);
+
+        const bookings = await transaction.booking.findMany({
+          where: {
+            status: {
+              in: [BookingStatus.CONFIRMED, BookingStatus.RESCHEDULED, BookingStatus.CANCELLED],
+            },
+            trainerArchivedAt: null,
+            slot: {
+              startAt: {
+                gte: from,
+              lt: to,
+            },
+          },
+          training: {
+            isNot: null,
+          },
+        },
+        include: {
+          client: true,
+          slot: true,
+          training: true,
+        },
+        orderBy: {
+          slot: {
+            startAt: "asc",
+          },
+        },
+        take: 200,
+      });
+
+        return {
+          status: "ok" as const,
+          items: bookings
+            .filter((booking) => booking.training)
+            .map((booking) => {
+            const isFuture = booking.slot.startAt.getTime() > now.getTime();
+            return {
+              bookingId: booking.id,
+              trainingId: booking.training!.id,
+              bookingStatus: booking.status,
+              trainingStatus: booking.training!.status,
+              startAt: booking.slot.startAt.toISOString(),
+              endAt: booking.slot.endAt.toISOString(),
+              clientCalendarIcsUrl: booking.training!.clientCalendarIcsUrl ?? null,
+              trainerComment: booking.trainerComment,
+              clientComment: booking.clientComment,
+              client: {
+                id: booking.client.id,
+                telegramId: booking.client.telegramId,
+                fullName: booking.client.fullName,
+                username: booking.client.username,
+                phone: booking.client.phone,
+                note: booking.client.note ?? null,
+                isBlacklisted: booking.client.isBlacklisted,
+              },
+              canCancel: isFuture,
+              canReschedule: isFuture,
+              canResyncCalendar: Boolean(booking.training?.id),
+            };
+          }),
       };
     });
   }
@@ -597,17 +720,6 @@ export class BookingsService {
       `;
       if (archivedRows.length > 0) {
         throw new ConflictException("Booking is already archived");
-      }
-
-      const isPast = booking.slot.endAt.getTime() <= now.getTime();
-      const canArchive =
-        booking.status === BookingStatus.CANCELLED
-        || booking.status === BookingStatus.REJECTED
-        || booking.status === BookingStatus.EXPIRED
-        || isPast;
-
-      if (!canArchive) {
-        throw new ConflictException("Booking cannot be archived yet");
       }
 
       await transaction.$executeRaw`
@@ -719,6 +831,110 @@ export class BookingsService {
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+  }
+
+  async getClientTrainingCalendarFile(telegramId: string, bookingId: string): Promise<ClientTrainingCalendarFileResult> {
+    const normalizedTelegramId = telegramId.trim();
+    const normalizedBookingId = bookingId.trim();
+
+    if (!normalizedTelegramId) {
+      throw new BadRequestException("telegramId is required");
+    }
+    if (!normalizedBookingId) {
+      throw new BadRequestException("bookingId is required");
+    }
+
+    const booking = await this.prismaService.booking.findFirst({
+      where: {
+        id: normalizedBookingId,
+        client: {
+          telegramId: normalizedTelegramId,
+        },
+      },
+      include: {
+        client: true,
+        training: true,
+      },
+    });
+
+    if (!booking || !booking.training) {
+      throw new NotFoundException("Training not found");
+    }
+
+    const training = booking.training;
+    if (training.status === TrainingStatus.CANCELLED || booking.status === BookingStatus.CANCELLED) {
+      throw new ConflictException("Cancelled training cannot be exported to calendar");
+    }
+
+    const filenameDate = this.formatFileDate(training.startAt);
+    const summary = this.escapeIcsText("Твой Бокс — персональная тренировка");
+    const descriptionParts = [
+      `Клиент: ${booking.client.fullName}`,
+      booking.trainerComment ? `Комментарий тренера: ${booking.trainerComment}` : null,
+      booking.clientComment ? `Комментарий клиента: ${booking.clientComment}` : null,
+    ].filter(Boolean) as string[];
+
+    return {
+      filename: `tvoy-box-training-${filenameDate}.ics`,
+      content: this.buildCalendarFileContent({
+        uid: `${training.id}@tvoy-box`,
+        startAt: training.startAt,
+        endAt: training.endAt,
+        summary,
+        description: descriptionParts.join("\n"),
+      }),
+    };
+  }
+
+  async getTrainerBookingCalendarFile(trainerTelegramId: string, bookingId: string): Promise<ClientTrainingCalendarFileResult> {
+    this.ensureAdminAccess(trainerTelegramId);
+
+    const normalizedBookingId = bookingId.trim();
+    if (!normalizedBookingId) {
+      throw new BadRequestException("bookingId is required");
+    }
+
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: normalizedBookingId },
+      include: {
+        client: true,
+        slot: true,
+        training: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException("Booking not found");
+    }
+
+    if (
+      booking.status === BookingStatus.REJECTED
+      || booking.status === BookingStatus.CANCELLED
+      || booking.status === BookingStatus.EXPIRED
+    ) {
+      throw new ConflictException("This booking cannot be exported to calendar");
+    }
+
+    const filenameDate = this.formatFileDate(booking.slot.startAt);
+    const summary = this.escapeIcsText("Твой Бокс — заявка на тренировку");
+    const descriptionParts = [
+      `Клиент: ${booking.client.fullName}`,
+      booking.client.phone ? `Телефон: ${booking.client.phone}` : null,
+      booking.client.username ? `Telegram: @${booking.client.username}` : null,
+      booking.trainerComment ? `Комментарий тренера: ${booking.trainerComment}` : null,
+      booking.clientComment ? `Комментарий клиента: ${booking.clientComment}` : null,
+    ].filter(Boolean) as string[];
+
+    return {
+      filename: `tvoy-box-booking-${filenameDate}.ics`,
+      content: this.buildCalendarFileContent({
+        uid: `${booking.training?.id ?? booking.id}@tvoy-box`,
+        startAt: booking.slot.startAt,
+        endAt: booking.slot.endAt,
+        summary,
+        description: descriptionParts.join("\n"),
+      }),
+    };
   }
 
   async rescheduleTrainingByClient(input: ClientRescheduleTrainingInput): Promise<BookingActionResult> {
@@ -1817,6 +2033,71 @@ export class BookingsService {
         payload: input.payload,
       },
     });
+  }
+
+  private toIcsUtc(value: Date): string {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(value.getUTCDate()).padStart(2, "0");
+    const hours = String(value.getUTCHours()).padStart(2, "0");
+    const minutes = String(value.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(value.getUTCSeconds()).padStart(2, "0");
+
+    return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+  }
+
+  private buildCalendarFileContent(input: {
+    uid: string;
+    startAt: Date;
+    endAt: Date;
+    summary: string;
+    description: string;
+  }): string {
+    return [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Tvoy Box//Mini App//RU",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:${input.uid}`,
+      `DTSTAMP:${this.toIcsUtc(new Date())}`,
+      `DTSTART:${this.toIcsUtc(input.startAt)}`,
+      `DTEND:${this.toIcsUtc(input.endAt)}`,
+      `SUMMARY:${input.summary}`,
+      `DESCRIPTION:${this.escapeIcsText(input.description)}`,
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Напоминание о тренировке завтра",
+      "TRIGGER:-P1D",
+      "END:VALARM",
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Напоминание о тренировке через 1 час",
+      "TRIGGER:-PT1H",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+  }
+
+  private formatFileDate(value: Date): string {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(value.getUTCDate()).padStart(2, "0");
+    const hours = String(value.getUTCHours()).padStart(2, "0");
+    const minutes = String(value.getUTCMinutes()).padStart(2, "0");
+
+    return `${year}-${month}-${day}-${hours}-${minutes}`;
+  }
+
+  private escapeIcsText(value: string): string {
+    return value
+      .replaceAll("\\", "\\\\")
+      .replaceAll(";", "\\;")
+      .replaceAll(",", "\\,")
+      .replaceAll("\r\n", "\\n")
+      .replaceAll("\n", "\\n");
   }
 
   private async releaseExpiredHoldForSlot(

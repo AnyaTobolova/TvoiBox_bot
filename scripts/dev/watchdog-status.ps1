@@ -84,11 +84,13 @@ if (Test-Path -LiteralPath $managerPidPath) {
 
 $apiPid = 0
 $botPid = 0
+$miniAppPid = 0
 if (Test-Path -LiteralPath $statePath) {
   try {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     $apiPid = [int]$state.apiPid
     $botPid = [int]$state.botPid
+    $miniAppPid = [int]$state.miniAppPid
   }
   catch {
     Write-Output "State file is broken."
@@ -129,6 +131,10 @@ $status = [ordered]@{
   bot = [ordered]@{
     "pid" = $botPid
     "running" = (Test-ProcessAlive -ProcessId $botPid)
+  }
+  "mini-app" = [ordered]@{
+    "pid" = $miniAppPid
+    "running" = (Test-ProcessAlive -ProcessId $miniAppPid)
   }
 }
 

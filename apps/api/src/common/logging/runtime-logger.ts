@@ -18,8 +18,28 @@ interface RuntimeLoggerOptions {
 
 export function createRuntimeLogger(options: RuntimeLoggerOptions) {
   const minLevel = options.minLevel ?? "info";
-  mkdirSync(dirname(options.filePath), { recursive: true });
   let fileWriteWarningShown = false;
+  let fileSystemAvailable = true;
+
+  try {
+    mkdirSync(dirname(options.filePath), { recursive: true });
+  } catch (error) {
+    fileSystemAvailable = false;
+    fileWriteWarningShown = true;
+    const normalizedError = error as Error;
+    console.warn(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        scope: options.scope,
+        level: "warn",
+        message: "Runtime log directory is unavailable, continuing with console output only",
+        context: {
+          filePath: options.filePath,
+          error: normalizedError.message,
+        },
+      }),
+    );
+  }
 
   const write = (level: LogLevel, message: string, context?: Record<string, unknown>) => {
     if (severityOrder[level] < severityOrder[minLevel]) {
@@ -34,24 +54,27 @@ export function createRuntimeLogger(options: RuntimeLoggerOptions) {
       context,
     });
 
-    try {
-      appendFileSync(options.filePath, `${record}\n`, { encoding: "utf8" });
-    } catch (error) {
-      if (!fileWriteWarningShown) {
-        fileWriteWarningShown = true;
-        const normalizedError = error as Error;
-        console.warn(
-          JSON.stringify({
-            timestamp: new Date().toISOString(),
-            scope: options.scope,
-            level: "warn",
-            message: "Runtime log file is unavailable, continuing with console output only",
-            context: {
-              filePath: options.filePath,
-              error: normalizedError.message,
-            },
-          }),
-        );
+    if (fileSystemAvailable) {
+      try {
+        appendFileSync(options.filePath, `${record}\n`, { encoding: "utf8" });
+      } catch (error) {
+        fileSystemAvailable = false;
+        if (!fileWriteWarningShown) {
+          fileWriteWarningShown = true;
+          const normalizedError = error as Error;
+          console.warn(
+            JSON.stringify({
+              timestamp: new Date().toISOString(),
+              scope: options.scope,
+              level: "warn",
+              message: "Runtime log file is unavailable, continuing with console output only",
+              context: {
+                filePath: options.filePath,
+                error: normalizedError.message,
+              },
+            }),
+          );
+        }
       }
     }
 

@@ -10,6 +10,6 @@ import { BookingsService } from "./bookings.service";
   imports: [PrismaModule, GoogleCalendarModule],
   controllers: [BookingsController],
   providers: [BookingsService, AppConfigService],
+  exports: [BookingsService],
 })
 export class BookingsModule {}
-

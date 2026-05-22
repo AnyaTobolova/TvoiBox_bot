@@ -16,6 +16,8 @@ apps/api/logs/
 logs/
 logs/**/*.log
 logs/**/*.jsonl
+runtime-logs/
+.playwright-mcp/
 apps/**/dist/
 packages/**/dist/
 pnpm-lock.yaml

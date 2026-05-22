@@ -11,13 +11,23 @@ export interface RegisterClientInput {
   consentAccepted: boolean;
 }
 
+export interface UpsertClientProfileInput {
+  telegramId: string;
+  username?: string | null;
+  fullName: string;
+  phone?: string | null;
+  note?: string | null;
+  consentAccepted?: boolean;
+}
+
 export interface ClientDto {
   id: string;
   telegramId: string;
   username: string | null;
   fullName: string;
   phone: string | null;
-  consentAcceptedAt: string;
+  note: string | null;
+  consentAcceptedAt: string | null;
   isBlacklisted: boolean;
   blacklistReason?: string | null;
   blacklistedAt?: string | null;
@@ -33,8 +43,19 @@ export interface RemoveFromBlacklistInput {
   clientId: string;
 }
 
+export interface AddToBlacklistInput {
+  trainerTelegramId: string;
+  clientId: string;
+  reason: string;
+}
+
 export interface RemoveFromBlacklistResult {
   status: "removed" | "already_removed";
+  client: ClientDto;
+}
+
+export interface AddToBlacklistResult {
+  status: "added" | "already_blacklisted";
   client: ClientDto;
 }
 
@@ -121,6 +142,7 @@ export class ClientsService {
         username,
         fullName,
         phone,
+        note: null,
         consentAcceptedAt: new Date(),
       },
     });
@@ -258,9 +280,133 @@ export class ClientsService {
     };
   }
 
+  async addToBlacklist(input: AddToBlacklistInput): Promise<AddToBlacklistResult> {
+    this.ensureTrainerAccess(input.trainerTelegramId);
+
+    const clientId = input.clientId.trim();
+    const reason = input.reason.trim();
+    if (!clientId) {
+      throw new BadRequestException("clientId is required");
+    }
+    if (!reason) {
+      throw new BadRequestException("reason is required");
+    }
+
+    const existingClient = await this.prismaService.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!existingClient) {
+      throw new BadRequestException("Client not found");
+    }
+
+    if (existingClient.isBlacklisted) {
+      const updatedClient =
+        existingClient.blacklistReason === reason
+          ? existingClient
+          : await this.prismaService.client.update({
+              where: { id: clientId },
+              data: {
+                blacklistReason: reason,
+                blacklistedAt: existingClient.blacklistedAt ?? new Date(),
+              },
+            });
+
+      return {
+        status: "already_blacklisted",
+        client: this.toClientDto(updatedClient),
+      };
+    }
+
+    const now = new Date();
+    const updatedClient = await this.prismaService.$transaction(async (transaction) => {
+      const updated = await transaction.client.update({
+        where: { id: clientId },
+        data: {
+          isBlacklisted: true,
+          blacklistReason: reason,
+          blacklistedAt: now,
+        },
+      });
+
+      await transaction.blacklistEntry.create({
+        data: {
+          clientId,
+          reason,
+        },
+      });
+
+      return updated;
+    });
+
+    return {
+      status: "added",
+      client: this.toClientDto(updatedClient),
+    };
+  }
+
+  async upsertClientProfile(input: UpsertClientProfileInput): Promise<ClientDto> {
+    const telegramId = input.telegramId.trim();
+    const fullName = input.fullName.trim();
+    const username = input.username?.trim() || null;
+    const phone = input.phone?.trim() || null;
+    const note = input.note?.trim() || null;
+
+    if (!telegramId) {
+      throw new BadRequestException("telegramId is required");
+    }
+
+    if (!fullName) {
+      throw new BadRequestException("fullName is required");
+    }
+
+    const existingClient = await this.prismaService.client.findUnique({
+      where: { telegramId },
+    });
+
+    if (!existingClient) {
+      const createdClient = await this.prismaService.client.create({
+        data: {
+          telegramId,
+          username,
+          fullName,
+          phone,
+          note,
+          consentAcceptedAt: input.consentAccepted ? new Date() : null,
+        },
+      });
+
+      return this.toClientDto(createdClient);
+    }
+
+    const updatedClient = await this.prismaService.client.update({
+      where: { id: existingClient.id },
+      data: {
+        username,
+        fullName,
+        phone,
+        note,
+        consentAcceptedAt:
+          typeof input.consentAccepted === "boolean"
+            ? input.consentAccepted
+              ? existingClient.consentAcceptedAt ?? new Date()
+              : null
+            : undefined,
+      },
+    });
+
+    return this.toClientDto(updatedClient);
+  }
+
   private ensureTrainerAccess(trainerTelegramId: string): void {
-    if (trainerTelegramId.trim() !== this.appConfigService.values.trainerTelegramId) {
-      throw new BadRequestException("Only trainer can manage blacklist");
+    const actorId = trainerTelegramId.trim();
+    const allowed = new Set([
+      this.appConfigService.values.trainerTelegramId,
+      this.appConfigService.values.adminTelegramId,
+    ]);
+
+    if (!allowed.has(actorId)) {
+      throw new BadRequestException("Only trainer/admin can manage clients");
     }
   }
 
@@ -270,7 +416,8 @@ export class ClientsService {
     username: string | null;
     fullName: string;
     phone: string | null;
-    consentAcceptedAt: Date;
+    note: string | null;
+    consentAcceptedAt: Date | null;
     isBlacklisted: boolean;
     blacklistReason?: string | null;
     blacklistedAt?: Date | null;
@@ -281,7 +428,8 @@ export class ClientsService {
       username: client.username,
       fullName: client.fullName,
       phone: client.phone,
-      consentAcceptedAt: client.consentAcceptedAt.toISOString(),
+      note: client.note ?? null,
+      consentAcceptedAt: client.consentAcceptedAt ? client.consentAcceptedAt.toISOString() : null,
       isBlacklisted: client.isBlacklisted,
       blacklistReason: client.blacklistReason ?? null,
       blacklistedAt: client.blacklistedAt ? client.blacklistedAt.toISOString() : null,

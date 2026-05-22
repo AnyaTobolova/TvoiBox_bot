@@ -82,6 +82,7 @@ if (Test-Path -LiteralPath $statePath) {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     Try-StopProcess -ProcessId ([int]$state.apiPid) -Name "api"
     Try-StopProcess -ProcessId ([int]$state.botPid) -Name "bot"
+    Try-StopProcess -ProcessId ([int]$state.miniAppPid) -Name "mini-app"
   }
   catch {
     Write-Output "Could not parse watchdog state file."

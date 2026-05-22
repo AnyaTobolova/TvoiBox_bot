@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import type { ReactNode } from "react";
 
 import "./globals.css";
@@ -10,8 +11,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
-      <body>{children}</body>
+    <html lang="ru" suppressHydrationWarning>
+      <body>
+        <Script src="https://telegram.org/js/telegram-web-app.js?57" strategy="beforeInteractive" />
+        {children}
+      </body>
     </html>
   );
 }

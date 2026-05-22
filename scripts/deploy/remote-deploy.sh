@@ -63,6 +63,8 @@ bash scripts/deploy/deploy-server.sh
 
 API_PORT_VALUE="$(grep -E '^API_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
 curl -fsS "http://127.0.0.1:${API_PORT_VALUE:-3300}/health" >/dev/null
+MINI_APP_PORT_VALUE="$(grep -E '^MINI_APP_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
+curl -fsS "http://127.0.0.1:${MINI_APP_PORT_VALUE:-3302}/" >/dev/null
 
 if [[ -f "${RELEASE_ARCHIVE}" ]]; then
   rm -f "${RELEASE_ARCHIVE}"

@@ -176,7 +176,8 @@ export class GoogleCalendarService {
       return false;
     }
 
-    return error.message.includes("Google Calendar HTTP 404");
+    return error.message.includes("Google Calendar HTTP 404")
+      || (error.message.includes("Google Calendar HTTP 410") && error.message.includes("reason=deleted"));
   }
 
   private getSyncMode(): "real" | "mock" {
