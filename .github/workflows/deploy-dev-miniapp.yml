@@ -90,9 +90,25 @@ jobs:
       - name: Verify dev API health endpoint
         shell: bash
         run: |
-          curl -fsSL "$DEV_HEALTHCHECK_URL"
+          for attempt in {1..12}; do
+            if curl -fsSL "$DEV_HEALTHCHECK_URL"; then
+              exit 0
+            fi
+            echo "[verify] API health is not ready yet, attempt ${attempt}/12"
+            sleep 10
+          done
+          echo "[verify] API health check failed after retries"
+          exit 1
 
       - name: Verify dev mini app root
         shell: bash
         run: |
-          curl -I -fsSL "$DEV_APP_URL"
+          for attempt in {1..12}; do
+            if curl -I -fsSL "$DEV_APP_URL"; then
+              exit 0
+            fi
+            echo "[verify] Mini app root is not ready yet, attempt ${attempt}/12"
+            sleep 10
+          done
+          echo "[verify] Mini app root check failed after retries"
+          exit 1
