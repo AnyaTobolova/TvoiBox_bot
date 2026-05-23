@@ -1,0 +1,92 @@
+name: Deploy Dev Mini App
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: dev-miniapp-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy mini app dev contour
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DEPLOY_ROOT: /opt/stack/tvoy-box-miniapp-dev
+      LEGACY_ROOT: /opt/stack/tvoy-box-miniapp-dev/current
+      RELEASE_NAME: ${{ github.sha }}
+      RELEASE_ARCHIVE_NAME: tvoy-box-miniapp-dev-${{ github.sha }}.tar.gz
+      KEEP_RELEASES: "5"
+      DEPLOY_WITH_BOT: "false"
+      DEV_APP_URL: https://app.anyatobolova.ru/
+      DEV_HEALTHCHECK_URL: https://app.anyatobolova.ru/mini-api/health
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create release archive
+        shell: bash
+        run: |
+          git archive --format=tar.gz --output "$RELEASE_ARCHIVE_NAME" HEAD
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        shell: bash
+        env:
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release bundle
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          scp -P "$VPS_PORT" \
+            "$RELEASE_ARCHIVE_NAME" \
+            "scripts/deploy/remote-deploy.sh" \
+            "${VPS_USER}@${VPS_HOST}:/tmp/"
+
+      - name: Run remote deploy
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -p "$VPS_PORT" "${VPS_USER}@${VPS_HOST}" "\
+            chmod 700 /tmp/remote-deploy.sh && \
+            DEPLOY_ROOT='${DEPLOY_ROOT}' \
+            LEGACY_ROOT='${LEGACY_ROOT}' \
+            RELEASE_NAME='${RELEASE_NAME}' \
+            RELEASE_ARCHIVE='/tmp/${RELEASE_ARCHIVE_NAME}' \
+            KEEP_RELEASES='${KEEP_RELEASES}' \
+            DEPLOY_WITH_BOT='${DEPLOY_WITH_BOT}' \
+            /bin/bash /tmp/remote-deploy.sh"
+
+      - name: Verify dev API health endpoint
+        shell: bash
+        run: |
+          curl -fsSL "$DEV_HEALTHCHECK_URL"
+
+      - name: Verify dev mini app root
+        shell: bash
+        run: |
+          curl -I -fsSL "$DEV_APP_URL"

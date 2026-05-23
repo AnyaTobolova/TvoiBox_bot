@@ -63,7 +63,7 @@ export class MiniAppAuthService {
   }
 
   async createDevSession(input: CreateDevSessionInput): Promise<MiniAppSessionResponse> {
-    if (this.appConfigService.values.nodeEnv === "production") {
+    if (this.appConfigService.values.nodeEnv === "production" && !this.appConfigService.values.miniAppEnableDevLogin) {
       throw new ForbiddenException("Dev login is not available in production");
     }
 

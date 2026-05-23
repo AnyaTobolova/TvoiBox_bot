@@ -751,7 +751,7 @@ a {
 .summary-card {
   display: grid;
   gap: 4px;
-  padding: 16px 18px;
+  padding: 14px 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.88);
@@ -759,15 +759,15 @@ a {
 
 .summary-card strong {
   font-family: var(--font-heading);
-  font-size: 24px;
-  line-height: 1;
-  font-weight: 700;
+  font-size: 21px;
+  line-height: 1.05;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .summary-card span {
-  color: rgba(24, 21, 21, 0.58);
-  font-size: 14px;
+  color: rgba(24, 21, 21, 0.46);
+  font-size: 13px;
   line-height: 1.4;
 }
 
@@ -999,9 +999,9 @@ a {
 .trainer-thought-panel {
   position: relative;
   min-height: 100%;
-  max-width: 440px;
+  max-width: 360px;
   justify-self: end;
-  padding: 18px 0 0;
+  padding: 6px 0 0;
 }
 
 .trainer-watermark {
@@ -1019,16 +1019,17 @@ a {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 20px;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+  max-width: 340px;
   justify-content: start;
 }
 
 .trainer-thought-card {
   min-width: 0;
-  padding: 14px 22px 16px;
-  border-radius: 20px;
+  padding: 12px 14px 13px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.74);
   border: 1px solid rgba(21, 21, 21, 0.06);
   backdrop-filter: blur(10px);
@@ -1036,17 +1037,19 @@ a {
 
 .trainer-thought-card:last-child {
   grid-column: 1 / span 1;
+  max-width: 220px;
 }
 
 .trainer-thought-card strong {
-  font-size: 18px;
-  line-height: 1.12;
+  font-size: 16px;
+  line-height: 1.18;
+  font-weight: 600;
 }
 
 .trainer-thought-card span {
   order: -1;
-  color: rgba(24, 21, 21, 0.48);
-  font-size: 13px;
+  color: rgba(24, 21, 21, 0.42);
+  font-size: 12px;
   line-height: 1.35;
 }
 

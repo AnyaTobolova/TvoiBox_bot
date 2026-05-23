@@ -98,6 +98,7 @@ export interface ApiRuntimeConfig {
   googleCalendarSyncMode: CalendarSyncMode;
   miniAppAuthSecret: string;
   miniAppAllowedOrigins: string[];
+  miniAppEnableDevLogin: boolean;
 }
 
 export function getApiRuntimeConfig(): ApiRuntimeConfig {
@@ -129,6 +130,7 @@ export function getApiRuntimeConfig(): ApiRuntimeConfig {
     googleCalendarSyncMode: getOptionalEnv("GOOGLE_CALENDAR_SYNC_MODE", "real") as CalendarSyncMode,
     miniAppAuthSecret: getOptionalEnv("MINI_APP_AUTH_SECRET", telegramBotToken),
     miniAppAllowedOrigins: getStringListEnv("MINI_APP_ALLOWED_ORIGINS", defaultMiniAppOrigins),
+    miniAppEnableDevLogin: getOptionalEnv("MINI_APP_ENABLE_DEV_LOGIN", "false").toLowerCase() === "true",
   };
 }
 

@@ -567,7 +567,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
       anchor.download = fileName;
       anchor.click();
       window.URL.revokeObjectURL(url);
-    }, "Р¤Р°Р№Р» РєР°Р»РµРЅРґР°СЂСЏ СЃРєР°С‡Р°РЅ. Р’РЅСѓС‚СЂРё СѓР¶Рµ РґРѕР±Р°РІР»РµРЅС‹ РЅР°РїРѕРјРёРЅР°РЅРёСЏ Р·Р° 1 РґРµРЅСЊ Рё Р·Р° 1 С‡Р°СЃ.");
+    }, "Файл календаря скачан. Внутри уже добавлены напоминания за 1 день и за 1 час.");
   }
 
   async function handleRejectBookingQuick(bookingId: string) {

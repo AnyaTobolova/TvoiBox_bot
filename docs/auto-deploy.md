@@ -46,8 +46,27 @@
 ## Файлы автодеплоя в репозитории
 
 - `.github/workflows/deploy-production.yml` — GitHub Actions workflow
+- `.github/workflows/deploy-dev-miniapp.yml` — отдельный dev-workflow для mini app на ветке `dev`
 - `scripts/deploy/remote-deploy.sh` — серверный release/deploy сценарий
 - `scripts/deploy/setup-server-autodeploy.sh` — одноразовая подготовка VPS под `deploy`-пользователя
+
+## Что уже разведено по контурам
+
+- `main` -> production workflow `Deploy Production`
+- `dev` -> dev workflow `Deploy Dev Mini App`
+
+Production и dev не должны деплоиться в один и тот же каталог на VPS:
+
+- production: `/opt/stack/tvoy-box-bot-deploy`
+- dev mini app: `/opt/stack/tvoy-box-miniapp-dev`
+
+Для dev mini app в workflow отдельно зафиксировано:
+
+- `DEPLOY_WITH_BOT=false`
+- health-check: `https://app.anyatobolova.ru/mini-api/health`
+- app-check: `https://app.anyatobolova.ru/`
+
+То есть автодеплой ветки `dev` не поднимает production-бота и не вмешивается в production-контур.
 
 ## Что нужно сделать вручную
 
@@ -73,7 +92,7 @@
 - `VPS_SSH_PRIVATE_KEY` — приватный ключ для этого пользователя
 - `VPS_KNOWN_HOSTS` — строка host key для сервера
 
-## Как проверить
+## Как проверить production
 
 1. Сделать тестовый `push` в `main`.
 2. Открыть `Actions` в GitHub.
@@ -87,6 +106,23 @@ curl https://api.anyatobolova.ru/health
 Или просто открыть:
 
 - `https://api.anyatobolova.ru/health`
+
+## Как проверить dev mini app
+
+1. Сделать тестовый `push` в `dev`.
+2. Открыть `Actions` в GitHub.
+3. Дождаться успешного workflow `Deploy Dev Mini App`.
+4. Проверить:
+
+```bash
+curl https://app.anyatobolova.ru/mini-api/health
+curl -I https://app.anyatobolova.ru/
+```
+
+Или открыть:
+
+- `https://app.anyatobolova.ru/?dev=client`
+- `https://app.anyatobolova.ru/?dev=trainer`
 
 ## Что делать, если workflow упал
 
@@ -104,3 +140,4 @@ curl https://api.anyatobolova.ru/health
 - неверный `VPS_KNOWN_HOSTS`
 - у `deploy`-пользователя нет доступа к `docker`
 - на сервере отсутствует `shared/.env.server` или `shared/.secrets/google-service-account.json`
+- для dev-контура не подготовлен `/opt/stack/tvoy-box-miniapp-dev/current/.env.server`, откуда bootstrap-скрипт берет первую копию в `shared`

@@ -206,30 +206,37 @@ export function MiniAppRoot() {
     setAuthMode("ready");
   };
 
+  const createPreviewSession = async (role: "client" | "trainer") => {
+    const createdSession = await api.devLogin(
+      role === "trainer"
+        ? {
+            telegramId: "492732093",
+            username: "demo_trainer",
+            firstName: "Демо",
+            lastName: "Тренер",
+          }
+        : {
+            telegramId: "7000000001",
+            username: "demo_client",
+            firstName: "Демо",
+            lastName: "Клиент",
+          },
+    );
+
+    await hydrateSession(createdSession.token);
+  };
+
   const bootstrap = async () => {
     try {
       const devMode = new URLSearchParams(window.location.search).get("dev");
       const isLocalPreview = ["localhost", "127.0.0.1"].includes(window.location.hostname);
       const forceManualDev = devMode === "manual";
+      const previewRole = devMode === "trainer" ? "trainer" : devMode === "client" ? "client" : null;
+      const canUsePreviewDevLogin = isLocalPreview || Boolean(previewRole);
 
-      if (isLocalPreview && !forceManualDev) {
+      if (previewRole && canUsePreviewDevLogin && !forceManualDev) {
         window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-        const createdSession = await api.devLogin(
-          devMode === "trainer"
-            ? {
-                telegramId: "492732093",
-                username: "demo_trainer",
-                firstName: "Демо",
-                lastName: "Тренер",
-              }
-            : {
-                telegramId: "7000000001",
-                username: "demo_client",
-                firstName: "Демо",
-                lastName: "Клиент",
-              },
-        );
-        await hydrateSession(createdSession.token);
+        await createPreviewSession(previewRole);
         return;
       }
 
@@ -253,30 +260,9 @@ export function MiniAppRoot() {
 
       const initData = webApp?.initData?.trim();
       if (!initData) {
-        const isLocalPreview = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-        const forceManualDev = devMode === "manual";
-
-        if (isLocalPreview && !forceManualDev) {
-          if (devMode === "trainer") {
-            window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-            const createdSession = await api.devLogin({
-              telegramId: "492732093",
-              username: "demo_trainer",
-              firstName: "Демо",
-              lastName: "Тренер",
-            });
-            await hydrateSession(createdSession.token);
-            return;
-          }
-
+        if (previewRole && canUsePreviewDevLogin && !forceManualDev) {
           window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-          const createdSession = await api.devLogin({
-            telegramId: "7000000001",
-            username: "demo_client",
-            firstName: "Демо",
-            lastName: "Клиент",
-          });
-          await hydrateSession(createdSession.token);
+          await createPreviewSession(previewRole);
           return;
         }
 
