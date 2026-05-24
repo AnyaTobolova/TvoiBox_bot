@@ -31,25 +31,21 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
   value="${trimmed#*=}"
 
   if grep -q "^${key}=" "${RUNTIME_ENV_FILE}"; then
-    python - "${RUNTIME_ENV_FILE}" "${key}" "${value}" <<'PY'
-from pathlib import Path
-import sys
-
-file_path = Path(sys.argv[1])
-target_key = sys.argv[2]
-target_value = sys.argv[3]
-
-lines = file_path.read_text(encoding="utf-8").splitlines()
-updated = []
-
-for line in lines:
-    if line.startswith(f"{target_key}="):
-        updated.append(f"{target_key}={target_value}")
-    else:
-        updated.append(line)
-
-file_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
-PY
+    awk -v target_key="${key}" -v target_value="${value}" '
+      BEGIN { updated = 0 }
+      index($0, target_key "=") == 1 {
+        print target_key "=" target_value
+        updated = 1
+        next
+      }
+      { print }
+      END {
+        if (updated == 0) {
+          print target_key "=" target_value
+        }
+      }
+    ' "${RUNTIME_ENV_FILE}" > "${RUNTIME_ENV_FILE}.tmp"
+    mv "${RUNTIME_ENV_FILE}.tmp" "${RUNTIME_ENV_FILE}"
   else
     printf '%s=%s\n' "${key}" "${value}" >> "${RUNTIME_ENV_FILE}"
   fi
