@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { startTransition, useEffect, useState } from "react";
@@ -110,6 +110,89 @@ function formatTime(dateIso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(dateIso));
+}
+
+const WEEKDAY_LABELS_RU: Record<string, string> = {
+  monday: "Понедельник",
+  tuesday: "Вторник",
+  wednesday: "Среда",
+  thursday: "Четверг",
+  friday: "Пятница",
+  saturday: "Суббота",
+  sunday: "Воскресенье",
+};
+
+function formatHoursLabelRu(value: number): string {
+  const abs = Math.abs(value) % 100;
+  const last = abs % 10;
+
+  if (abs > 10 && abs < 20) {
+    return `${value} часов`;
+  }
+
+  if (last === 1) {
+    return `${value} час`;
+  }
+
+  if (last >= 2 && last <= 4) {
+    return `${value} часа`;
+  }
+
+  return `${value} часов`;
+}
+
+function formatDaysLabelRu(value: number): string {
+  const abs = Math.abs(value) % 100;
+  const last = abs % 10;
+
+  if (abs > 10 && abs < 20) {
+    return `${value} дней`;
+  }
+
+  if (last === 1) {
+    return `${value} день`;
+  }
+
+  if (last >= 2 && last <= 4) {
+    return `${value} дня`;
+  }
+
+  return `${value} дней`;
+}
+
+function formatDateOnly(dateIso: string): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(dateIso));
+}
+
+function getClientStatusLabel(item: ClientTrainingDto): string {
+  if (item.isAwaitingTrainerDecision) {
+    return "ожидает подтверждения";
+  }
+
+  if (item.hasTrainerProposal) {
+    return "предложен перенос";
+  }
+
+  switch (item.bookingStatus) {
+    case "PENDING":
+      return "ожидает подтверждения";
+    case "CONFIRMED":
+      return "подтверждено";
+    case "RESCHEDULED":
+      return "предложен перенос";
+    case "CANCELLED":
+      return "отменено";
+    case "REJECTED":
+      return "отклонено";
+    case "EXPIRED":
+      return "истекло";
+    default:
+      return String(item.bookingStatus).toLowerCase();
+  }
 }
 
 function getStatusTone(item: ClientTrainingDto): "pending" | "success" | "danger" | "muted" {
@@ -812,25 +895,20 @@ export function MiniAppRoot() {
 
         {screen === "home" ? (
           <>
-            <section className="hero-card">
-              <div className="hero-grid">
-                <div className="hero-copy">
-                  <h1 className="hero-title hero-title-brand">
-                    <span className="hero-title-line">Сила начинается не с удара.</span>
-                    <span className="hero-title-line">Сила начинается</span>
-                    <span className="hero-title-line">с уверенности в себе.</span>
-                  </h1>
-                  <p className="hero-lead hero-lead-brand">
-                    Выберите удобный день, отправьте заявку и приходите на тренировку. Без давления, без подготовки,
-                    просто попробуйте.
-                  </p>
+            <section className="hero-card hero-card-compact">
+              <div className="hero-card-top">
+                <span className="hero-label">ТВОЙ БОКС</span>
+                <div className="hero-avatar-frame">
+                  <Image className="hero-avatar" src="/assets/trainer.png" alt="Тренер Твой Бокс" width={164} height={164} priority />
                 </div>
+              </div>
 
-                <aside className="hero-aside">
-                  <div className="trainer-frame">
-                    <Image className="trainer-photo" src="/assets/trainer.png" alt="Тренер Твой Бокс" width={800} height={1000} priority />
-                  </div>
-                </aside>
+              <div className="hero-copy hero-copy-compact">
+                <h1 className="hero-title hero-title-compact">Сила начинается не с удара</h1>
+                <p className="hero-lead hero-lead-compact">
+                  Она начинается с уверенности в себе. Выберите удобный день и приходите на тренировку - без давления и
+                  подготовки.
+                </p>
               </div>
             </section>
 
@@ -840,55 +918,39 @@ export function MiniAppRoot() {
                   <strong>Можно сразу заполнить профиль</strong>
                   <p>Имя, телефон и заметка помогут тренеру быстрее связаться с вами при записи.</p>
                 </div>
-                <button className="secondary-button" onClick={() => openScreen("profile")}>
+                <button className="secondary-button secondary-button-compact" onClick={() => openScreen("profile")}>
                   Открыть профиль
                 </button>
               </div>
             ) : null}
 
-            <section className="home-actions-grid">
+            <section className="home-actions-grid home-actions-grid-compact">
               <article className="action-card action-card-home">
                 <strong>Запись</strong>
-                <p>Открой свободные слоты, выбери удобное время и отправь заявку.</p>
-                <button
-                  className="primary-button"
-                  disabled={isBusy}
-                  onClick={handleOpenBooking}
-                >
+                <p>Выберите удобный день, время и отправьте запрос тренеру.</p>
+                <button className="primary-button action-card-button" disabled={isBusy} onClick={handleOpenBooking}>
                   Перейти к слотам
                 </button>
               </article>
 
               <article className="action-card action-card-home">
                 <strong>Мои тренировки</strong>
-                <p>Проверяй будущие записи, переноси время или отменяй тренировку.</p>
-                <button className="secondary-button" disabled={isBusy} onClick={() => openScreen("records")}>
+                <p>Следите за заявками, подтверждениями, переносами и отменами в одном месте.</p>
+                <button className="secondary-button action-card-button" disabled={isBusy} onClick={() => openScreen("records")}>
                   Открыть список
                 </button>
               </article>
+
               <article className="action-card action-card-home">
                 <strong>Связь с тренером</strong>
-                <p>Если есть вопрос или хочешь что-то обсудить, можно написать напрямую в Telegram.</p>
-                <a className="secondary-button support-link-button" href="https://t.me/RostPV" target="_blank" rel="noreferrer">
+                <p>Если хочется что-то обсудить, можно быстро написать тренеру в Telegram.</p>
+                <a className="secondary-button support-link-button action-card-button" href="https://t.me/RostPV" target="_blank" rel="noreferrer">
                   Написать тренеру
                 </a>
               </article>
             </section>
-
-            <section className="panel compact-panel support-panel-hidden">
-              <div>
-                <h2 className="panel-title">Связь с тренером</h2>
-                <p className="panel-text">Если есть какой-то вопрос или хочешь что-то обсудить, то можешь просто написать мне.</p>
-              </div>
-              <div className="record-actions">
-                <a className="secondary-button support-link-button" href="https://t.me/RostPV" target="_blank" rel="noreferrer">
-                  Написать тренеру
-                </a>
-              </div>
-            </section>
           </>
         ) : null}
-
         {screen === "profile" ? (
           <section className="panel">
             <div className="panel-header">
@@ -940,64 +1002,62 @@ export function MiniAppRoot() {
 
         {screen === "support" ? (
           <section className="panel">
-            <div className="panel-header">
-              <div className="panel-header-actions">
-                <button className="secondary-button" disabled={isBusy} onClick={goBack}>
-                  Назад
-                </button>
-              </div>
+            <div className="panel-header panel-header-compact">
               <div>
                 <h2 className="panel-title">Помощь</h2>
                 <p className="panel-text">Коротко о записи и связи с тренером.</p>
               </div>
+              <div className="panel-header-actions">
+                <button className="secondary-button secondary-button-compact" disabled={isBusy} onClick={goBack}>
+                  Назад
+                </button>
+              </div>
             </div>
 
             <ul className="support-list">
-              <li>Если подходящего времени нет, отправь запрос без слота с удобными днями и временем.</li>
-              <li>Все актуальные статусы по заявкам и тренировкам собраны в разделе «Мои записи».</li>
-              <li>Для связи с тренером лучше заранее заполнить имя, телефон и заметку в профиле.</li>
+              <li>Если подходящего времени нет, отправьте запрос без слота с удобными днями и диапазоном времени.</li>
+              <li>Все актуальные статусы по заявкам и тренировкам собраны в разделе «Мои тренировки».</li>
+              <li>Чтобы тренеру было проще связаться, лучше заранее заполнить имя, телефон и заметку в профиле.</li>
             </ul>
 
             <div className="support-contact">
-              <p className="panel-text">Если есть какой-то вопрос или хочешь что-то обсудить, то можешь просто написать мне.</p>
+              <p className="panel-text">Если есть вопрос или хочется что-то обсудить, просто напишите тренеру в Telegram.</p>
               <a className="secondary-button support-link-button" href="https://t.me/RostPV" target="_blank" rel="noreferrer">
                 Написать тренеру
               </a>
             </div>
           </section>
         ) : null}
-
         {screen === "booking" ? (
-          <section className="panel">
-            <div className="panel-header">
+          <section className="panel booking-panel">
+            <div className="booking-header">
+              <button className="back-link" disabled={isBusy} onClick={goBack}>
+                ← Назад
+              </button>
               <div>
                 <h2 className="panel-title">{rescheduleBookingId ? "Перенос записи" : "Запись на тренировку"}</h2>
+                <p className="panel-text">Выберите удобный день и время для занятия.</p>
                 {bookingRules ? (
-                  <p className="panel-text">
-                    Запись открыта на {formatDaysLabel(bookingRules.bookingHorizonDays)} вперёд.
+                  <p className="booking-rules-note">
+                    Запись открыта на {formatDaysLabelRu(bookingRules.bookingHorizonDays)} вперёд.
                     {bookingRules.sameDayBookingCutoff > 0
-                      ? ` В день тренировки запись закрывается за ${formatHoursLabel(bookingRules.sameDayBookingCutoff)} до начала.`
+                      ? ` В день тренировки запись закрывается за ${formatHoursLabelRu(bookingRules.sameDayBookingCutoff)} до начала.`
                       : " В день тренировки запись доступна до начала занятия."}
                   </p>
                 ) : null}
               </div>
-              <button className="secondary-button" disabled={isBusy} onClick={goBack}>
-                Назад
-              </button>
             </div>
 
-            <label className="checkbox-row checkbox-row-panel">
+            <label className="checkbox-row checkbox-row-soft">
               <input
                 type="checkbox"
                 checked={bookingConsentAccepted}
                 disabled={isBusy}
                 onChange={(event) => void handleBookingConsentChange(event.target.checked)}
               />
-              <span>Подтверждаю согласие на обработку персональных данных для записи на тренировку.</span>
+              <span>Согласие на обработку персональных данных</span>
             </label>
-            {!bookingConsentAccepted ? (
-              <p className="consent-note">После подтверждения согласия можно выбрать дату и время тренировки.</p>
-            ) : null}
+            {!bookingConsentAccepted ? <p className="consent-note">После подтверждения согласия можно выбрать дату и время тренировки.</p> : null}
 
             {closureInfo?.hasClosure ? (
               <div className="alert alert-info">
@@ -1009,7 +1069,7 @@ export function MiniAppRoot() {
             ) : null}
 
             {isBusy && slotGroups.length === 0 ? (
-              <div className="loader-state">
+              <div className="loader-state loader-state-compact">
                 <strong>Подгружаем доступные слоты…</strong>
                 <span>Собираем ближайшее свободное время по текущим настройкам записи.</span>
               </div>
@@ -1019,7 +1079,7 @@ export function MiniAppRoot() {
               <div className="empty-state">
                 <strong>Свободных слотов пока нет</strong>
                 <span>Можно сразу отправить запрос без слота и указать удобные дни.</span>
-                <button className="secondary-button" onClick={() => setShowNoSlotRequest(true)}>
+                <button className="secondary-button secondary-button-compact" onClick={() => setShowNoSlotRequest(true)}>
                   Открыть запрос без слота
                 </button>
               </div>
@@ -1028,9 +1088,9 @@ export function MiniAppRoot() {
             {slotGroups.length > 0 ? (
               <div className="booking-groups">
                 {slotGroups.map((group) => (
-                  <section className="slot-day" key={group.dayKey}>
+                  <section className="slot-day slot-day-compact" key={group.dayKey}>
                     <div className="slot-day-header">
-                      <h3 className="slot-day-title">{group.title}</h3>
+                      <h3 className="slot-day-title">{group.title.replace(",", " ·")}</h3>
                     </div>
                     <div className="time-grid">
                       {group.items.map((slot) => (
@@ -1050,123 +1110,131 @@ export function MiniAppRoot() {
               </div>
             ) : null}
 
-            <div className="form-grid" style={{ marginTop: 16 }}>
+            <div className="form-grid booking-form-grid">
               <label className="field">
                 <span className="field-label">Комментарий к заявке</span>
                 <textarea
                   value={bookingComment}
                   onChange={(event) => setBookingComment(event.target.value)}
-                  placeholder="Например: мне удобнее закончить до 19:00 или нужно время чуть позже."
+                  placeholder="например: удобнее после 18:00"
                 />
               </label>
 
-              <div className="record-actions">
+              <div className="booking-actions">
                 <button
-                  className="primary-button"
+                  className="primary-button booking-submit-button"
                   disabled={isBusy || !selectedSlotId || !bookingConsentAccepted}
                   onClick={() => void handleBookingSubmit()}
                 >
-                  {rescheduleBookingId ? "Отправить запрос на перенос" : "Отправить заявку"}
+                  {rescheduleBookingId ? "Отправить запрос на перенос" : "Записаться"}
                 </button>
-                <button className="secondary-button" disabled={isBusy} onClick={() => setShowNoSlotRequest((current) => !current)}>
-                  {showNoSlotRequest ? "Скрыть запрос без слота" : "Нет подходящего времени"}
+                <button
+                  className="secondary-button secondary-button-compact"
+                  disabled={isBusy}
+                  onClick={() => setShowNoSlotRequest((current) => !current)}
+                >
+                  {showNoSlotRequest ? "Скрыть запрос" : "Нет подходящего времени"}
                 </button>
               </div>
             </div>
 
             {showNoSlotRequest ? (
-              <section className="panel" style={{ marginTop: 16, padding: 16 }}>
-                <div className="panel-header">
-                  <div>
-                    <h3 className="panel-title">Запрос без слота</h3>
-                    <p className="panel-text">Укажи удобные дни и время, чтобы тренер смог предложить вариант вручную.</p>
+              <section className="panel no-slot-panel">
+                <div className="no-slot-header">
+                  <h3 className="panel-title">Запрос без слота</h3>
+                  <p className="panel-text">
+                    Не нашли подходящее время? Укажите удобные дни и диапазон времени, а тренер поможет подобрать вариант.
+                  </p>
+                </div>
+
+                <div className="no-slot-step">
+                  <span className="step-label">Шаг 1</span>
+                  <h4 className="step-title">Удобные дни</h4>
+                  <div className="chip-group chip-group-soft">
+                    {Object.entries(WEEKDAY_LABELS_RU).map(([value, label]) => {
+                      const active = noSlotForm.preferredDays.includes(value);
+                      return (
+                        <button
+                          key={value}
+                          className="chip-button chip-button-soft"
+                          data-active={active}
+                          onClick={() =>
+                            setNoSlotForm((current) => ({
+                              ...current,
+                              preferredDays: active
+                                ? current.preferredDays.filter((item) => item !== value)
+                                : [...current.preferredDays, value],
+                            }))
+                          }
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="form-grid">
-                  <div className="field">
-                    <span className="field-label">Удобные дни</span>
-                    <div className="chip-group">
-                      {Object.entries(WEEKDAY_LABELS).map(([value, label]) => {
-                        const active = noSlotForm.preferredDays.includes(value);
-                        return (
-                          <button
-                            key={value}
-                            className="chip-button"
-                            data-active={active}
-                            onClick={() =>
-                              setNoSlotForm((current) => ({
-                                ...current,
-                                preferredDays: active
-                                  ? current.preferredDays.filter((item) => item !== value)
-                                  : [...current.preferredDays, value],
-                              }))
-                            }
-                            type="button"
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
+                <div className="no-slot-step">
+                  <span className="step-label">Шаг 2</span>
+                  <h4 className="step-title">Предпочтительное время</h4>
                   <label className="field">
-                    <span className="field-label">Предпочтительное время</span>
                     <input
                       value={noSlotForm.preferredTime}
                       onChange={(event) => setNoSlotForm((current) => ({ ...current, preferredTime: event.target.value }))}
-                      placeholder="Например: после 19:00 или утром"
+                      placeholder="например: после 19:00 или утром"
                     />
                   </label>
+                </div>
 
+                <div className="no-slot-step">
+                  <span className="step-label">Шаг 3</span>
+                  <h4 className="step-title">Комментарий (необязательно)</h4>
                   <label className="field">
-                    <span className="field-label">Комментарий</span>
                     <textarea
                       value={noSlotForm.clientComment}
                       onChange={(event) => setNoSlotForm((current) => ({ ...current, clientComment: event.target.value }))}
-                      placeholder="Опиши удобные окна, если это поможет быстрее подобрать время."
+                      placeholder="дополнительные пожелания"
                     />
                   </label>
-
-                  <button className="primary-button" disabled={isBusy} onClick={() => void handleNoSlotRequest()}>
-                    Отправить запрос
-                  </button>
                 </div>
+
+                <button className="primary-button no-slot-submit-button" disabled={isBusy} onClick={() => void handleNoSlotRequest()}>
+                  Отправить запрос
+                </button>
               </section>
             ) : null}
           </section>
         ) : null}
-
         {screen === "records" ? (
           <section className="panel">
-            <div className="panel-header">
+            <div className="panel-header panel-header-compact">
               <div>
                 <h2 className="panel-title">Мои записи</h2>
-                <p className="panel-text">Здесь собраны только будущие записи и актуальные статусы по ним.</p>
+                <p className="panel-text">Здесь собраны будущие записи и актуальные статусы по ним.</p>
               </div>
               <div className="panel-header-actions">
-                <button className="secondary-button" disabled={isBusy} onClick={goBack}>
+                <button className="secondary-button secondary-button-compact" disabled={isBusy} onClick={goBack}>
                   Назад
                 </button>
-                <button className="secondary-button" disabled={isBusy} onClick={() => void loadRecords()}>
+                <button className="secondary-button secondary-button-compact" disabled={isBusy} onClick={() => void loadRecords()}>
                   Обновить
                 </button>
               </div>
             </div>
 
             {isBusy && records.length === 0 ? (
-              <div className="loader-state">
+              <div className="loader-state loader-state-compact">
                 <strong>Загружаем записи…</strong>
-                <span>Проверяем подтверждения, переносы и доступные действия.</span>
+                <span>Собираем подтверждения, переносы и доступные действия.</span>
               </div>
             ) : null}
 
             {!isBusy && records.length === 0 ? (
               <div className="empty-state">
                 <strong>Пока нет будущих записей</strong>
-                <span>Когда будешь готов, можно сразу вернуться к выбору слота.</span>
-                <button className="primary-button" onClick={handleOpenBooking}>
+                <span>Когда будете готовы, можно сразу вернуться к выбору времени.</span>
+                <button className="primary-button booking-submit-button" onClick={handleOpenBooking}>
                   Перейти к записи
                 </button>
               </div>
@@ -1174,59 +1242,65 @@ export function MiniAppRoot() {
 
             {records.length > 0 ? (
               <div className="record-list">
-                {records.map((item) => (
-                  <article className="record-card" key={item.bookingId}>
-                    <div className="record-card-head">
-                      <div>
-                        <h3 className="record-title">{formatDateTime(item.startAt)}</h3>
+                {records.map((item) => {
+                  const primaryComment = item.trainerComment
+                    ? `Комментарий: ${item.trainerComment}`
+                    : item.clientComment
+                      ? `Комментарий: ${item.clientComment}`
+                      : null;
+
+                  return (
+                    <article className="record-card workout-card" key={item.bookingId}>
+                      <div className="workout-card__top">
+                        <div className="workout-card__date">{formatDateOnly(item.startAt)}</div>
+                        <div className="workout-card__time">{formatTime(item.startAt)}</div>
                       </div>
-                      <span className="status-pill" data-tone={getStatusTone(item)}>
-                        {getStatusLabel(item)}
-                      </span>
-                    </div>
 
-                    {item.trainerComment ? <p className="record-comment">Комментарий тренера: {item.trainerComment}</p> : null}
-                    {item.clientComment ? <p className="record-comment">Ваш комментарий: {item.clientComment}</p> : null}
+                      <div className="workout-card__status" data-tone={getStatusTone(item)}>
+                        {getClientStatusLabel(item)}
+                      </div>
 
-                    <div className="record-actions">
-                      {item.canReschedule ? (
-                        <button className="status-button" disabled={isBusy} onClick={() => handleStartReschedule(item.bookingId)}>
-                          Перенести
-                        </button>
-                      ) : null}
-                      {item.canCancel ? (
-                        <button
-                          className="status-button"
-                          data-variant="danger"
-                          disabled={isBusy}
-                          onClick={() => void handleCancelTraining(item.bookingId)}
-                        >
-                          {item.isAwaitingTrainerDecision ? "Отменить заявку" : "Отменить"}
-                        </button>
-                      ) : null}
-                      {item.hasTrainerProposal ? (
-                        <>
-                          <button className="status-button" disabled={isBusy} onClick={() => void handleAcceptProposal(item.bookingId)}>
-                            Принять перенос
+                      {primaryComment ? <p className="workout-card__comment">{primaryComment}</p> : null}
+
+                      <div className="workout-card__actions">
+                        {item.canReschedule ? (
+                          <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => handleStartReschedule(item.bookingId)}>
+                            Перенести
                           </button>
-                          <button className="status-button" disabled={isBusy} onClick={() => void handleDeclineProposal(item.bookingId)}>
-                            Отклонить перенос
+                        ) : null}
+                        {item.trainingStatus && item.trainingStatus !== "CANCELLED" && !item.isAwaitingTrainerDecision ? (
+                          <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleDownloadCalendar(item.bookingId, item.startAt)}>
+                            В календарь
                           </button>
-                        </>
-                      ) : null}
-                      {item.trainingStatus && item.trainingStatus !== "CANCELLED" && !item.isAwaitingTrainerDecision ? (
-                        <button className="status-button" disabled={isBusy} onClick={() => void handleDownloadCalendar(item.bookingId, item.startAt)}>
-                          Добавить в календарь
-                        </button>
-                      ) : null}
-                      {item.canDelete ? (
-                        <button className="status-button" disabled={isBusy} onClick={() => void handleArchiveRecord(item.bookingId)}>
-                          Удалить из списка
-                        </button>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
+                        ) : null}
+                        {item.canCancel ? (
+                          <button
+                            className={item.isAwaitingTrainerDecision ? "status-button action-btn action-btn--danger-soft" : "status-button action-btn action-btn--danger"}
+                            disabled={isBusy}
+                            onClick={() => void handleCancelTraining(item.bookingId)}
+                          >
+                            {item.isAwaitingTrainerDecision ? "Отменить заявку" : "Отменить"}
+                          </button>
+                        ) : null}
+                        {item.hasTrainerProposal ? (
+                          <>
+                            <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleAcceptProposal(item.bookingId)}>
+                              Принять перенос
+                            </button>
+                            <button className="status-button action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleDeclineProposal(item.bookingId)}>
+                              Отклонить
+                            </button>
+                          </>
+                        ) : null}
+                        {item.canDelete ? (
+                          <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleArchiveRecord(item.bookingId)}>
+                            Удалить из списка
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : null}
           </section>
@@ -1235,3 +1309,4 @@ export function MiniAppRoot() {
     </main>
   );
 }
+

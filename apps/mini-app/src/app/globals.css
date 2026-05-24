@@ -1073,6 +1073,425 @@ a {
   line-height: 1.35;
 }
 
+.hero-card-compact {
+  padding: 18px;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.hero-card-compact::after {
+  inset: auto -86px -110px auto;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(230, 57, 70, 0.12), rgba(230, 57, 70, 0));
+}
+
+.hero-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hero-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e63946;
+}
+
+.hero-avatar-frame {
+  width: 82px;
+  height: 82px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 239, 231, 0.96));
+  border: 1px solid rgba(24, 21, 21, 0.05);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.07);
+  flex-shrink: 0;
+}
+
+.hero-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.hero-copy-compact {
+  max-width: 420px;
+  margin-top: 18px;
+}
+
+.hero-title-compact {
+  margin: 0;
+  max-width: 320px;
+  color: #111111;
+  font-size: clamp(28px, 4vw, 32px);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.hero-lead-compact {
+  max-width: 430px;
+  margin-top: 12px;
+  margin-bottom: 0;
+  color: #666666;
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+.home-actions-grid-compact {
+  gap: 10px;
+}
+
+.home-actions-grid-compact .action-card-home {
+  min-height: 0;
+  gap: 10px;
+  padding: 16px;
+  align-content: start;
+}
+
+.home-actions-grid-compact .action-card strong {
+  font-size: 19px;
+  line-height: 1.08;
+  font-family: var(--font-heading);
+}
+
+.home-actions-grid-compact .action-card p {
+  font-size: 14px;
+  line-height: 1.48;
+  color: #666666;
+}
+
+.action-card-button {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.panel-header-compact {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.secondary-button-compact {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.booking-panel {
+  padding: 18px;
+}
+
+.booking-header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.back-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #666666;
+  font-size: 15px;
+  font-weight: 600;
+  justify-self: start;
+}
+
+.booking-panel .panel-title,
+.no-slot-panel .panel-title {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.booking-panel .panel-text,
+.no-slot-panel .panel-text {
+  color: #666666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.booking-rules-note {
+  margin: 8px 0 0;
+  color: #666666;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.checkbox-row-soft {
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #777777;
+  font-size: 13px;
+}
+
+.checkbox-row-soft input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.slot-day-compact {
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.slot-day-compact .slot-day-title {
+  margin-bottom: 14px;
+  color: #111111;
+  font-size: 18px;
+  font-family: var(--font-body);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.slot-day-compact .time-grid {
+  gap: 10px;
+}
+
+.slot-day-compact .time-button {
+  min-width: 92px;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: #f7f7f7;
+  border: 1px solid transparent;
+  color: #222222;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.slot-day-compact .time-button[data-active="true"] {
+  background: rgba(230, 57, 70, 0.08);
+  border-color: rgba(230, 57, 70, 0.25);
+  color: #e63946;
+  box-shadow: none;
+}
+
+.booking-panel .field-label,
+.no-slot-panel .field-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #777777;
+}
+
+.booking-panel .field input,
+.booking-panel .field textarea,
+.no-slot-panel .field input,
+.no-slot-panel .field textarea {
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  padding: 16px;
+}
+
+.booking-panel .field input,
+.no-slot-panel .field input {
+  min-height: 54px;
+}
+
+.booking-panel .field textarea,
+.no-slot-panel .field textarea {
+  min-height: 90px;
+}
+
+.booking-form-grid {
+  gap: 18px;
+}
+
+.booking-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-submit-button,
+.no-slot-submit-button {
+  min-height: 56px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+
+.no-slot-panel {
+  margin-top: 10px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+}
+
+.no-slot-header {
+  margin-bottom: 26px;
+}
+
+.no-slot-step {
+  margin-bottom: 22px;
+}
+
+.step-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #777777;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.step-title {
+  margin: 0 0 12px;
+  color: #111111;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.chip-group-soft {
+  gap: 10px;
+}
+
+.chip-button-soft {
+  width: fit-content;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: #f6f6f6;
+  border: 1px solid transparent;
+  color: #222222;
+  font-size: 15px;
+  font-weight: 700;
+  transition: all 0.25s ease;
+}
+
+.chip-button-soft[data-active="true"] {
+  background: rgba(230, 57, 70, 0.08);
+  border-color: rgba(230, 57, 70, 0.25);
+  color: #e63946;
+}
+
+.loader-state-compact {
+  gap: 8px;
+  padding: 16px;
+}
+
+.loader-state-compact strong {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.loader-state-compact span {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.workout-card {
+  padding: 16px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.workout-card__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.workout-card__date,
+.workout-card__time {
+  color: #111111;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.workout-card__status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.workout-card__status[data-tone="pending"] {
+  background: #fff1d8;
+  color: #a86400;
+}
+
+.workout-card__status[data-tone="success"] {
+  background: #dff4ea;
+  color: #137a45;
+}
+
+.workout-card__status[data-tone="danger"] {
+  background: #f8dede;
+  color: #b23636;
+}
+
+.workout-card__status[data-tone="muted"] {
+  background: #f1f1f1;
+  color: #6d6d6d;
+}
+
+.workout-card__comment {
+  margin: 4px 0 12px;
+  color: #666666;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.workout-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f5f5f5;
+  color: #111111;
+}
+
+.action-btn--secondary {
+  background: #f5f5f5;
+  color: #111111;
+}
+
+.action-btn--danger {
+  background: transparent;
+  color: #d3332f;
+  border-color: rgba(211, 51, 47, 0.22);
+}
+
+.action-btn--danger-soft {
+  background: #fbe9e8;
+  color: #d3332f;
+  border-color: transparent;
+}
+
 @media (max-width: 980px) {
   .hero-grid,
   .content-grid {
@@ -1153,6 +1572,37 @@ a {
 
   .hero-card {
     padding: 14px;
+  }
+
+  .hero-card-compact {
+    padding: 16px;
+  }
+
+  .hero-card-top {
+    gap: 12px;
+  }
+
+  .hero-avatar-frame {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+  }
+
+  .hero-copy-compact {
+    margin-top: 14px;
+    max-width: 100%;
+  }
+
+  .hero-title-compact {
+    max-width: 260px;
+    font-size: 24px;
+    line-height: 1.04;
+  }
+
+  .hero-lead-compact {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   .hero-grid {
@@ -1247,6 +1697,25 @@ a {
     min-height: 0;
   }
 
+  .home-actions-grid-compact .action-card-home {
+    padding: 14px;
+  }
+
+  .home-actions-grid-compact .action-card strong {
+    font-size: 15px;
+  }
+
+  .home-actions-grid-compact .action-card p {
+    font-size: 12px;
+    line-height: 1.38;
+  }
+
+  .action-card-button,
+  .secondary-button-compact {
+    min-height: 40px;
+    font-size: 13px;
+  }
+
   .action-card .primary-button,
   .action-card .secondary-button {
     width: 100%;
@@ -1277,8 +1746,19 @@ a {
     border-radius: 16px;
   }
 
+  .slot-day-compact {
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 18px;
+  }
+
   .slot-day-title {
     font-size: 15px;
+  }
+
+  .slot-day-compact .slot-day-title {
+    margin-bottom: 10px;
+    font-size: 16px;
   }
 
   .time-grid {
@@ -1299,6 +1779,78 @@ a {
 
   .field-label {
     font-size: 12px;
+  }
+
+  .booking-panel,
+  .no-slot-panel {
+    padding: 14px;
+  }
+
+  .booking-panel .panel-title,
+  .no-slot-panel .panel-title {
+    font-size: 24px;
+  }
+
+  .booking-panel .panel-text,
+  .booking-rules-note,
+  .no-slot-panel .panel-text {
+    font-size: 13px;
+    line-height: 1.48;
+  }
+
+  .back-link {
+    font-size: 14px;
+  }
+
+  .slot-day-compact .time-button {
+    min-width: calc(50% - 5px);
+    min-height: 42px;
+    padding: 0 14px;
+    font-size: 15px;
+  }
+
+  .chip-button-soft {
+    height: 38px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+
+  .booking-submit-button,
+  .no-slot-submit-button {
+    min-height: 52px;
+    font-size: 15px;
+  }
+
+  .workout-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .workout-card__date,
+  .workout-card__time {
+    font-size: 18px;
+  }
+
+  .workout-card__comment {
+    font-size: 13px;
+  }
+
+  .workout-card__actions {
+    gap: 7px;
+  }
+
+  .action-btn {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .loader-state-compact strong {
+    font-size: 18px;
+  }
+
+  .loader-state-compact span {
+    font-size: 13px;
   }
 
   .form-grid {
