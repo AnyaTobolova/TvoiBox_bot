@@ -182,6 +182,14 @@ curl -I https://app.anyatobolova.ru/
 
 Он нужен именно как safe-template для внешнего dev-запуска, а не как замена production `.env.server`.
 
+Для безопасной Telegram-проверки поверх уже поднятого dev-контура также подготовлены:
+
+- `deploy/.env.server.test-bot.override.example`
+- `scripts/deploy/start-dev-test-bot.sh`
+- `scripts/deploy/stop-dev-test-bot.sh`
+
+То есть test bot можно запустить как отдельный polling-сервис поверх существующего dev stack, не трогая production webhook.
+
 Что важно считать успешным dev-деплоем:
 
 - `https://app.anyatobolova.ru/` открывается по HTTPS;

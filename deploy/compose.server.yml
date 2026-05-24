@@ -26,7 +26,7 @@ services:
       context: ..
       dockerfile: infra/docker/Dockerfile.api
     env_file:
-      - ../.env.server
+      - ${SERVER_ENV_FILE:-../.env.server}
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,7 +41,7 @@ services:
       dockerfile: infra/docker/Dockerfile.api
     restart: unless-stopped
     env_file:
-      - ../.env.server
+      - ${SERVER_ENV_FILE:-../.env.server}
     environment:
       GOOGLE_SERVICE_ACCOUNT_JSON_PATH: ${GOOGLE_SERVICE_ACCOUNT_JSON_PATH:-/run/secrets/google-service-account.json}
     depends_on:
@@ -74,7 +74,7 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
     restart: unless-stopped
     env_file:
-      - ../.env.server
+      - ${SERVER_ENV_FILE:-../.env.server}
     depends_on:
       api:
         condition: service_healthy
@@ -99,7 +99,7 @@ services:
       dockerfile: infra/docker/Dockerfile.bot
     restart: unless-stopped
     env_file:
-      - ../.env.server
+      - ${SERVER_ENV_FILE:-../.env.server}
     depends_on:
       api:
         condition: service_healthy

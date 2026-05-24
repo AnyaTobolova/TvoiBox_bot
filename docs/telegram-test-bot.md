@@ -29,10 +29,7 @@
 ```env
 TELEGRAM_BOT_TOKEN=<TOKEN_TEST_BOT>
 BOT_DRY_RUN=false
-BOT_DELIVERY_MODE=webhook
-BOT_WEBHOOK_PUBLIC_URL=https://api.anyatobolova.ru/telegram/webhook/<test-path>
-BOT_WEBHOOK_PATH=/telegram/webhook/<test-path>
-BOT_WEBHOOK_SECRET_TOKEN=<LONG_RANDOM_SECRET>
+BOT_DELIVERY_MODE=polling
 
 BOT_MINI_APP_URL=https://app.anyatobolova.ru/
 BOT_MINI_APP_LABEL=Открыть mini app
@@ -43,6 +40,17 @@ BOT_MINI_APP_LABEL=Открыть mini app
 - `ADMIN_TELEGRAM_ID` — твой Telegram ID;
 - `TRAINER_TELEGRAM_ID` — Telegram ID тренера;
 - `API_BASE_URL` — API, к которому должен обращаться test bot.
+
+## Почему для первого прогона лучше polling, а не webhook
+
+Для test bot на `Этапе 28` безопаснее и проще использовать `polling`:
+
+- не нужно добавлять новый публичный webhook-route на VPS;
+- не нужно трогать production `api.anyatobolova.ru`;
+- не возникает риска случайно задеть боевой bot webhook;
+- можно поднять и остановить test bot как отдельный сервис поверх уже работающего dev-контура.
+
+Webhook-режим для test bot можно добавить позже, если он действительно понадобится, но для первой Telegram-проверки это не нужно.
 
 ## Какой URL давать test bot
 
@@ -64,6 +72,48 @@ BOT_MINI_APP_LABEL=Открыть mini app
 2. Сохранить его токен отдельно от production-токена.
 3. При желании задать боту отдельное имя вроде `Твой Бокс Test`.
 4. Не публиковать ссылку на этого бота пользователям.
+
+## Что уже подготовлено на серверной стороне
+
+В репозитории добавлены:
+
+- `deploy/.env.server.test-bot.override.example`
+- `scripts/deploy/start-dev-test-bot.sh`
+- `scripts/deploy/stop-dev-test-bot.sh`
+
+Это позволяет поднять отдельный test bot поверх уже работающего dev-контура mini app без вмешательства в production-бота.
+
+### Как запустить test bot на VPS
+
+1. В каталоге текущего dev-release скопировать шаблон:
+
+```bash
+cp deploy/.env.server.test-bot.override.example .env.server.test-bot.override
+```
+
+2. Заполнить в `.env.server.test-bot.override`:
+
+- `TELEGRAM_BOT_TOKEN`
+- `ADMIN_TELEGRAM_ID`
+- `TRAINER_TELEGRAM_ID`
+
+3. Запустить:
+
+```bash
+bash scripts/deploy/start-dev-test-bot.sh
+```
+
+4. Проверить статус:
+
+```bash
+docker compose --env-file .env.server.test-bot.runtime -f deploy/compose.server.yml ps bot
+```
+
+### Как остановить test bot
+
+```bash
+bash scripts/deploy/stop-dev-test-bot.sh
+```
 
 ## Как подключить mini app к test bot
 
