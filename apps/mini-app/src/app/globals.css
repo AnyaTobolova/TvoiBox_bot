@@ -60,14 +60,14 @@ a {
 
 .mini-app-page {
   min-height: 100vh;
-  padding: 18px 14px 32px;
+  padding: 12px 12px 20px;
 }
 
 .mini-app-shell {
   width: min(1180px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .topbar,
@@ -242,7 +242,7 @@ a {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-xl);
-  padding: 56px 60px 44px;
+  padding: 30px 34px 26px;
 }
 
 .hero-card::after {
@@ -258,13 +258,13 @@ a {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1.08fr 0.78fr;
-  gap: 56px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  gap: 30px;
+  align-items: center;
 }
 
 .hero-copy {
-  max-width: 720px;
+  max-width: 560px;
 }
 
 .eyebrow {
@@ -327,9 +327,9 @@ a {
 }
 
 .trainer-frame {
-  width: min(420px, 100%);
+  width: min(300px, 100%);
   aspect-ratio: 4 / 5;
-  border-radius: 30px;
+  border-radius: 26px;
   overflow: hidden;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 239, 231, 0.95));
   box-shadow: var(--shadow-strong);
@@ -458,6 +458,14 @@ a {
   line-height: 1.55;
 }
 
+.action-card .primary-button,
+.action-card .secondary-button,
+.action-card .support-link-button {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
 .primary-button,
 .secondary-button,
 .status-button,
@@ -470,12 +478,14 @@ a {
   border-radius: var(--radius-pill);
   background: var(--brand-black);
   color: #fff;
+  min-height: 48px;
 }
 
 .secondary-button {
   padding: 12px 16px;
   background: rgba(20, 20, 20, 0.06);
   color: var(--brand-black);
+  min-height: 48px;
 }
 
 .secondary-button[data-variant="danger"],
@@ -740,6 +750,7 @@ a {
   padding: 10px 14px;
   background: rgba(20, 20, 20, 0.06);
   color: var(--brand-black);
+  min-height: 46px;
 }
 
 .summary-grid {
@@ -894,8 +905,8 @@ a {
 
 .home-actions-grid {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .compact-panel {
@@ -909,12 +920,17 @@ a {
 }
 
 .action-card-home {
-  min-height: 220px;
+  min-height: 178px;
   align-content: space-between;
 }
 
 .action-card-home p {
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.support-panel-hidden {
+  display: none;
 }
 
 .panel-header-actions {
@@ -937,9 +953,9 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  justify-self: start;
-  width: fit-content;
-  max-width: max-content;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   padding: 11px 18px;
 }
@@ -949,14 +965,18 @@ a {
 }
 
 .hero-title-brand {
-  max-width: 720px;
+  max-width: 560px;
   color: #111111;
-  font-size: clamp(34px, 3.7vw, 52px);
-  line-height: 1.05;
+  font-size: clamp(28px, 3vw, 46px);
+  line-height: 1.04;
+  margin-bottom: 16px;
 }
 
 .hero-lead-brand {
   color: #5f5f5f;
+  max-width: 500px;
+  font-size: 17px;
+  line-height: 1.52;
 }
 
 .trainer-hero-grid {
@@ -1070,15 +1090,19 @@ a {
 
 @media (max-width: 720px) {
   .mini-app-page {
-    padding-inline: 10px;
+    padding: 8px 8px 16px;
+  }
+
+  .mini-app-shell {
+    gap: 10px;
   }
 
   .topbar {
     border-radius: 22px;
     align-items: center;
     flex-direction: row;
-    padding: 14px 16px;
-    gap: 10px;
+    padding: 10px 12px;
+    gap: 8px;
   }
 
   .topbar-actions {
@@ -1094,19 +1118,19 @@ a {
   }
 
   .brand-logo {
-    width: 46px;
-    height: 46px;
-    border-radius: 16px;
-    padding: 5px;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    padding: 4px;
   }
 
   .brand-copy {
-    max-width: 190px;
+    max-width: 174px;
   }
 
   .brand-title {
     gap: 6px;
-    font-size: 19px;
+    font-size: 17px;
   }
 
   .brand-tagline {
@@ -1128,25 +1152,23 @@ a {
   }
 
   .hero-card {
-    padding: 24px;
+    padding: 18px;
   }
 
   .hero-grid {
-    gap: 28px;
-  }
-
-  .trainer-hero-grid {
-    grid-template-columns: 1fr;
-    gap: 28px;
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 14px;
+    align-items: end;
   }
 
   .hero-aside {
-    gap: 10px;
+    gap: 8px;
+    justify-items: end;
   }
 
   .trainer-frame {
-    width: min(260px, 100%);
-    border-radius: 22px;
+    width: 112px;
+    border-radius: 18px;
   }
 
   .panel {
@@ -1172,21 +1194,16 @@ a {
     padding: 10px 14px;
   }
 
-  .hero-title {
-    font-size: 42px;
-    line-height: 1.02;
-    margin-bottom: 18px;
-  }
-
   .hero-title-brand,
   .trainer-thought-title {
-    font-size: 38px;
-    line-height: 1.04;
+    font-size: 30px;
+    line-height: 1.01;
+    margin-bottom: 12px;
   }
 
   .hero-lead {
-    font-size: 16px;
-    line-height: 1.58;
+    font-size: 14px;
+    line-height: 1.45;
   }
 
   .alert {
@@ -1206,23 +1223,24 @@ a {
   }
 
   .home-actions-grid {
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .action-card {
-    gap: 10px;
-    padding: 16px;
+    gap: 8px;
+    padding: 14px;
     border-radius: 18px;
   }
 
   .action-card strong {
-    font-size: 22px;
+    font-size: 18px;
   }
 
   .action-card p,
   .action-card-home p {
-    font-size: 14px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.42;
   }
 
   .action-card-home {
@@ -1345,6 +1363,8 @@ a {
   }
 
   .record-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     margin-top: 12px;
   }
@@ -1422,7 +1442,7 @@ a {
   }
 
   .record-actions .support-link-button {
-    width: auto;
+    width: 100%;
     text-align: center;
   }
 

@@ -169,6 +169,8 @@ export interface ClientTrainingDto {
   clientCalendarIcsUrl: string | null;
   trainerComment: string | null;
   clientComment: string | null;
+  isAwaitingTrainerDecision: boolean;
+  hasTrainerProposal: boolean;
   canCancel: boolean;
   canReschedule: boolean;
   canDelete: boolean;
@@ -554,10 +556,15 @@ export class BookingsService {
         .filter((booking) => !archivedIds.has(booking.id))
         .map((booking) => {
         const isFuture = booking.slot.startAt.getTime() > now.getTime();
-        const isPast = booking.slot.endAt.getTime() <= now.getTime();
         const trainingCancelled = booking.training?.status === TrainingStatus.CANCELLED;
-        const canManage = booking.status === BookingStatus.CONFIRMED && isFuture && !trainingCancelled;
-        const canDelete = true;
+        const hasTrainerProposal = booking.status === BookingStatus.RESCHEDULED
+          && this.extractProposedStartAtFromTrainerComment(booking.trainerComment) !== null;
+        const isAwaitingTrainerDecision = booking.status === BookingStatus.PENDING
+          || (booking.status === BookingStatus.RESCHEDULED && !hasTrainerProposal);
+        const canManageConfirmed = booking.status === BookingStatus.CONFIRMED && isFuture && !trainingCancelled;
+        const canCancelPendingRequest = isFuture
+          && (booking.status === BookingStatus.PENDING || (booking.status === BookingStatus.RESCHEDULED && !hasTrainerProposal));
+        const canDelete = !isAwaitingTrainerDecision;
 
         return {
           bookingId: booking.id,
@@ -568,8 +575,10 @@ export class BookingsService {
           clientCalendarIcsUrl: booking.training?.clientCalendarIcsUrl ?? null,
           trainerComment: booking.trainerComment,
           clientComment: booking.clientComment,
-          canCancel: canManage,
-          canReschedule: canManage,
+          isAwaitingTrainerDecision,
+          hasTrainerProposal,
+          canCancel: canManageConfirmed || canCancelPendingRequest,
+          canReschedule: canManageConfirmed,
           canDelete,
         };
         })
@@ -579,6 +588,14 @@ export class BookingsService {
 
           if (leftIsFuture !== rightIsFuture) {
             return leftIsFuture ? -1 : 1;
+          }
+
+          if (left.isAwaitingTrainerDecision !== right.isAwaitingTrainerDecision) {
+            return left.isAwaitingTrainerDecision ? -1 : 1;
+          }
+
+          if (left.hasTrainerProposal !== right.hasTrainerProposal) {
+            return left.hasTrainerProposal ? -1 : 1;
           }
 
           const leftStart = new Date(left.startAt).getTime();
@@ -747,10 +764,143 @@ export class BookingsService {
     }
 
     const now = new Date();
-    const booking = await this.prismaService.$transaction(async (transaction) => {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        client: true,
+        slot: true,
+        training: {
+          select: {
+            id: true,
+            status: true,
+            slotId: true,
+            calendarEventId: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException("Booking not found");
+    }
+
+    if (booking.client.telegramId !== telegramId) {
+      throw new ForbiddenException("Booking does not belong to this client");
+    }
+
+    if (booking.status === BookingStatus.PENDING) {
+      return this.prismaService.$transaction(async (transaction) => {
+        await this.releaseExpiredPendingBookings(transaction, now);
+        const freshBooking = await transaction.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            client: true,
+            slot: true,
+          },
+        });
+
+        if (!freshBooking || freshBooking.status !== BookingStatus.PENDING) {
+          throw new ConflictException("Booking request is no longer active");
+        }
+
+        const updatedBooking = await transaction.booking.update({
+          where: { id: freshBooking.id },
+          data: {
+            status: BookingStatus.CANCELLED,
+            cancelledAt: now,
+            clientComment: this.appendClientActionComment(freshBooking.clientComment, "Клиент отменил заявку", comment),
+          },
+          include: {
+            client: true,
+            slot: true,
+          },
+        });
+
+        await this.releaseHeldSlot(transaction, freshBooking.slotId);
+
+        return {
+          status: "cancelled" as const,
+          booking: this.toPendingBookingDto(updatedBooking),
+        };
+      });
+    }
+
+    const hasTrainerProposal = booking.status === BookingStatus.RESCHEDULED
+      && this.extractProposedStartAtFromTrainerComment(booking.trainerComment) !== null;
+
+    if (booking.status === BookingStatus.RESCHEDULED && booking.training && !hasTrainerProposal) {
+      return this.prismaService.$transaction(async (transaction) => {
+        const freshBooking = await transaction.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            client: true,
+            slot: true,
+            training: {
+              select: {
+                slotId: true,
+              },
+            },
+          },
+        });
+
+        if (
+          !freshBooking
+          || freshBooking.client.telegramId !== telegramId
+          || freshBooking.status !== BookingStatus.RESCHEDULED
+          || !freshBooking.training
+        ) {
+          throw new ConflictException("Reschedule request is no longer active");
+        }
+
+        const requestedSlotId = freshBooking.slotId;
+        const originalSlotId = freshBooking.training.slotId;
+        const originalSlot = await transaction.slot.findUnique({
+          where: { id: originalSlotId },
+        });
+
+        if (!originalSlot) {
+          throw new ConflictException("Original training slot not found");
+        }
+
+        const updatedBooking = await transaction.booking.update({
+          where: { id: freshBooking.id },
+          data: {
+            slotId: originalSlotId,
+            status: BookingStatus.CONFIRMED,
+            clientComment: this.appendClientActionComment(
+              freshBooking.clientComment,
+              "Клиент отменил запрос на перенос",
+              comment,
+            ),
+          },
+          include: {
+            client: true,
+            slot: true,
+          },
+        });
+
+        await transaction.slot.updateMany({
+          where: {
+            id: requestedSlotId,
+            status: SlotStatus.HELD,
+          },
+          data: {
+            status: SlotStatus.OPEN,
+            heldUntil: null,
+          },
+        });
+
+        return {
+          status: "confirmed" as const,
+          booking: this.toPendingBookingDto(updatedBooking),
+        };
+      });
+    }
+
+    const confirmedBooking = await this.prismaService.$transaction(async (transaction) => {
       return this.getConfirmedBookingForClientOrThrow(transaction, bookingId, telegramId);
     });
-    const training = booking.training;
+    const training = confirmedBooking.training;
     if (!training) {
       throw new ConflictException("Training record not found for this booking");
     }
@@ -769,7 +919,7 @@ export class BookingsService {
           externalEventId: training.calendarEventId,
           message: normalizedError.message,
           payload: {
-            bookingId: booking.id,
+            bookingId: confirmedBooking.id,
             source: "cancelTrainingByClient",
           },
         });
@@ -953,165 +1103,64 @@ export class BookingsService {
     }
 
     const now = new Date();
-    const prepared = await this.prismaService.$transaction(async (transaction) => {
-      const booking = await this.getConfirmedBookingForClientOrThrow(transaction, bookingId, telegramId);
-      const targetSlot = await this.resolveSlotForBooking(transaction, targetSlotId);
-      if (targetSlot.id === booking.slotId) {
+    return this.prismaService.$transaction(async (transaction) => {
+      const freshBooking = await this.getConfirmedBookingForClientOrThrow(transaction, bookingId, telegramId);
+      const freshTargetSlot = await this.resolveSlotForBooking(transaction, targetSlotId);
+      if (freshTargetSlot.id === freshBooking.slotId) {
         throw new ConflictException("Target slot is the same as current slot");
       }
-      if (targetSlot.status !== SlotStatus.OPEN) {
+      if (freshTargetSlot.status !== SlotStatus.OPEN) {
         throw new ConflictException("Target slot is not available");
       }
+
       const settings = await this.ensureTrainerSettings(transaction);
-      this.assertSlotWithinBookingRules(targetSlot.startAt, now, settings.bookingHorizonDays, settings.sameDayBookingCutoff);
+      this.assertSlotWithinBookingRules(
+        freshTargetSlot.startAt,
+        now,
+        settings.bookingHorizonDays,
+        settings.sameDayBookingCutoff,
+      );
 
-      return { booking, targetSlot };
-    });
-
-    if (!prepared.booking.training) {
-      throw new ConflictException("Training record not found for this booking");
-    }
-
-    const calendarOperation = prepared.booking.training.calendarEventId
-      ? SyncOperation.UPDATE
-      : SyncOperation.CREATE;
-    let calendarSync:
-      | Awaited<ReturnType<GoogleCalendarService["createEvent"]>>
-      | Awaited<ReturnType<GoogleCalendarService["updateEvent"]>>
-      | null = null;
-    let calendarSyncErrorMessage: string | null = null;
-    try {
-      calendarSync = prepared.booking.training.calendarEventId
-        ? await this.googleCalendarService.updateEvent(prepared.booking.training.calendarEventId, {
-            trainingId: prepared.booking.training.id,
-            clientName: prepared.booking.client.fullName,
-            clientPhone: prepared.booking.client.phone,
-            clientUsername: prepared.booking.client.username,
-            clientTelegramId: prepared.booking.client.telegramId,
-            startAt: prepared.targetSlot.startAt,
-            endAt: prepared.targetSlot.endAt,
-            trainerComment: prepared.booking.trainerComment,
-          })
-        : await this.googleCalendarService.createEvent({
-            trainingId: prepared.booking.training.id,
-            clientName: prepared.booking.client.fullName,
-            clientPhone: prepared.booking.client.phone,
-            clientUsername: prepared.booking.client.username,
-            clientTelegramId: prepared.booking.client.telegramId,
-            startAt: prepared.targetSlot.startAt,
-            endAt: prepared.targetSlot.endAt,
-            trainerComment: prepared.booking.trainerComment,
-          });
-    } catch (error) {
-      calendarSyncErrorMessage = (error as Error).message;
-    }
-
-    try {
-      return this.prismaService.$transaction(async (transaction) => {
-        const freshBooking = await this.getConfirmedBookingForClientOrThrow(transaction, bookingId, telegramId);
-        const freshTargetSlot = await this.resolveSlotForBooking(transaction, targetSlotId);
-        if (freshTargetSlot.id === freshBooking.slotId) {
-          throw new ConflictException("Target slot is the same as current slot");
-        }
-
-        const lockTarget = await transaction.slot.updateMany({
-          where: {
-            id: freshTargetSlot.id,
-            status: SlotStatus.OPEN,
-          },
-          data: {
-            status: SlotStatus.BOOKED,
-            heldUntil: null,
-            isManuallyClosed: false,
-            closureReason: null,
-          },
-        });
-        if (lockTarget.count !== 1) {
-          throw new ConflictException("Target slot is no longer available");
-        }
-
-        await transaction.booking.update({
-          where: { id: freshBooking.id },
-          data: {
-            slotId: freshTargetSlot.id,
-            status: BookingStatus.CONFIRMED,
-            confirmedAt: now,
-            clientComment: this.appendClientActionComment(freshBooking.clientComment, "Клиент перенес тренировку", comment),
-          },
-        });
-
-        await transaction.training.update({
-          where: { bookingId: freshBooking.id },
-          data: {
-            slotId: freshTargetSlot.id,
-            startAt: freshTargetSlot.startAt,
-            endAt: freshTargetSlot.endAt,
-            status: TrainingStatus.RESCHEDULED,
-            cancelledAt: null,
-            calendarEventId: calendarSync?.eventId ?? prepared.booking.training?.calendarEventId ?? null,
-          },
-        });
-
-        await transaction.slot.updateMany({
-          where: {
-            id: freshBooking.slotId,
-            status: SlotStatus.BOOKED,
-          },
-          data: {
-            status: SlotStatus.CLOSED,
-            heldUntil: null,
-            isManuallyClosed: false,
-            closureReason: null,
-          },
-        });
-
-        await transaction.calendarSyncLog.create({
-          data: {
-            trainingId: freshBooking.training!.id,
-            operation: calendarOperation,
-            status: calendarSync ? SyncStatus.SUCCESS : SyncStatus.FAILED,
-            externalEventId: calendarSync?.eventId ?? prepared.booking.training?.calendarEventId ?? null,
-            message: calendarSync
-              ? "Google Calendar event synced after client reschedule"
-              : (calendarSyncErrorMessage ?? "Google Calendar sync failed after client reschedule"),
-            payload: {
-              bookingId: freshBooking.id,
-              mode: calendarSync?.mode ?? this.appConfigService.values.googleCalendarSyncMode,
-              degraded: !calendarSync,
-            },
-          },
-        });
-
-        const updatedBooking = await transaction.booking.findUnique({
-          where: { id: freshBooking.id },
-          include: {
-            client: true,
-            slot: true,
-          },
-        });
-
-        if (!updatedBooking) {
-          throw new NotFoundException("Booking not found");
-        }
-
-        return {
-          status: "rescheduled" as const,
-          booking: this.toPendingBookingDto(updatedBooking),
-        };
+      const expiresAt = this.getEndOfMoscowDay(now);
+      const holdTarget = await transaction.slot.updateMany({
+        where: {
+          id: freshTargetSlot.id,
+          status: SlotStatus.OPEN,
+        },
+        data: {
+          status: SlotStatus.HELD,
+          heldUntil: expiresAt,
+        },
       });
-    } catch (error) {
-      if (calendarSync?.eventId && !prepared.booking.training.calendarEventId) {
-        try {
-          await this.googleCalendarService.cancelEvent({
-            trainingId: prepared.booking.training.id,
-            eventId: calendarSync.eventId,
-          });
-        } catch {
-          // No-op: best-effort cleanup.
-        }
+
+      if (holdTarget.count !== 1) {
+        throw new ConflictException("Target slot is no longer available");
       }
-      throw error;
-    }
+
+      const requestedTimeText = moscowDateTimeFormatter.format(freshTargetSlot.startAt);
+      const updatedBooking = await transaction.booking.update({
+        where: { id: freshBooking.id },
+        data: {
+          slotId: freshTargetSlot.id,
+          status: BookingStatus.RESCHEDULED,
+          expiresAt,
+          clientComment: this.appendClientActionComment(
+            freshBooking.clientComment,
+            `Клиент запросил перенос на ${requestedTimeText}`,
+            comment,
+          ),
+        },
+        include: {
+          client: true,
+          slot: true,
+        },
+      });
+
+      return {
+        status: "rescheduled" as const,
+        booking: this.toPendingBookingDto(updatedBooking),
+      };
+    });
   }
 
   async confirmBooking(input: ConfirmBookingInput): Promise<BookingActionResult> {
@@ -1125,39 +1174,78 @@ export class BookingsService {
     const now = new Date();
     const booking = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
-      const booking = await this.getPendingBookingOrThrow(transaction, bookingId);
-      this.assertPendingBookingIsActive(booking, now);
+      return transaction.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          client: true,
+          slot: true,
+          training: true,
+        },
+      });
+    });
 
+    if (!booking) {
+      throw new NotFoundException("Booking not found");
+    }
+
+    const hasTrainerProposal = booking.status === BookingStatus.RESCHEDULED
+      && this.extractProposedStartAtFromTrainerComment(booking.trainerComment) !== null;
+    const isClientRescheduleRequest = booking.status === BookingStatus.RESCHEDULED
+      && Boolean(booking.training)
+      && !hasTrainerProposal
+      && booking.training!.slotId !== booking.slotId;
+
+    if (booking.status !== BookingStatus.PENDING && !isClientRescheduleRequest) {
+      throw new ConflictException("Booking is already processed");
+    }
+
+    if (booking.status === BookingStatus.PENDING) {
+      this.assertPendingBookingIsActive(booking, now);
       if (booking.slot.status === SlotStatus.BOOKED) {
         throw new ConflictException("Slot is already booked");
       }
-
       if (booking.slot.status === SlotStatus.CLOSED || booking.slot.status === SlotStatus.CANCELLED) {
         throw new ConflictException("Slot is not available for confirmation");
       }
+    } else if (booking.slot.status === SlotStatus.BOOKED || booking.slot.status === SlotStatus.CLOSED || booking.slot.status === SlotStatus.CANCELLED) {
+      throw new ConflictException("Slot is not available for confirmation");
+    }
 
-      return booking;
-    });
-
-    let calendarSync: Awaited<ReturnType<GoogleCalendarService["createEvent"]>> | null = null;
+    const calendarOperation = booking.training?.calendarEventId ? SyncOperation.UPDATE : SyncOperation.CREATE;
+    let calendarSync:
+      | Awaited<ReturnType<GoogleCalendarService["createEvent"]>>
+      | Awaited<ReturnType<GoogleCalendarService["updateEvent"]>>
+      | null = null;
     let calendarSyncErrorMessage: string | null = null;
+
     try {
-      calendarSync = await this.googleCalendarService.createEvent({
-        trainingId: booking.id,
-        clientName: booking.client.fullName,
-        clientPhone: booking.client.phone,
-        clientUsername: booking.client.username,
-        clientTelegramId: booking.client.telegramId,
-        startAt: booking.slot.startAt,
-        endAt: booking.slot.endAt,
-        trainerComment: booking.trainerComment,
-      });
+      calendarSync = booking.training?.calendarEventId
+        ? await this.googleCalendarService.updateEvent(booking.training.calendarEventId, {
+            trainingId: booking.training.id,
+            clientName: booking.client.fullName,
+            clientPhone: booking.client.phone,
+            clientUsername: booking.client.username,
+            clientTelegramId: booking.client.telegramId,
+            startAt: booking.slot.startAt,
+            endAt: booking.slot.endAt,
+            trainerComment: booking.trainerComment,
+          })
+        : await this.googleCalendarService.createEvent({
+            trainingId: booking.training?.id ?? booking.id,
+            clientName: booking.client.fullName,
+            clientPhone: booking.client.phone,
+            clientUsername: booking.client.username,
+            clientTelegramId: booking.client.telegramId,
+            startAt: booking.slot.startAt,
+            endAt: booking.slot.endAt,
+            trainerComment: booking.trainerComment,
+          });
     } catch (error) {
       calendarSyncErrorMessage = (error as Error).message;
     }
 
-    try {
-      const result = await this.prismaService.$transaction(async (transaction) => {
+    return this.prismaService.$transaction(async (transaction) => {
+      if (booking.status === BookingStatus.PENDING) {
         const lockedBooking = await this.getPendingBookingOrThrow(transaction, booking.id);
         this.assertPendingBookingIsActive(lockedBooking, now);
 
@@ -1239,22 +1327,93 @@ export class BookingsService {
           status: "confirmed" as const,
           booking: this.toPendingBookingDto(updatedBooking),
         };
+      }
+
+      const freshBooking = await transaction.booking.findUnique({
+        where: { id: booking.id },
+        include: {
+          client: true,
+          slot: true,
+          training: true,
+        },
       });
 
-      return result;
-    } catch (error) {
-      if (calendarSync?.eventId) {
-        try {
-        await this.googleCalendarService.cancelEvent({
-          trainingId: booking.id,
-          eventId: calendarSync.eventId,
-        });
-        } catch {
-          // No-op: best effort cleanup for orphan calendar event.
-        }
+      if (!freshBooking || freshBooking.status !== BookingStatus.RESCHEDULED || !freshBooking.training) {
+        throw new ConflictException("Reschedule request is no longer active");
       }
-      throw error;
-    }
+
+      const updatedBooking = await transaction.booking.update({
+        where: { id: freshBooking.id },
+        data: {
+          status: BookingStatus.CONFIRMED,
+          confirmedAt: now,
+        },
+        include: {
+          client: true,
+          slot: true,
+        },
+      });
+
+      await transaction.slot.updateMany({
+        where: {
+          id: freshBooking.slotId,
+          status: SlotStatus.HELD,
+        },
+        data: {
+          status: SlotStatus.BOOKED,
+          heldUntil: null,
+          isManuallyClosed: false,
+          closureReason: null,
+        },
+      });
+
+      await transaction.training.update({
+        where: { bookingId: freshBooking.id },
+        data: {
+          slotId: freshBooking.slotId,
+          startAt: freshBooking.slot.startAt,
+          endAt: freshBooking.slot.endAt,
+          status: TrainingStatus.RESCHEDULED,
+          calendarEventId: calendarSync?.eventId ?? freshBooking.training.calendarEventId ?? null,
+          cancelledAt: null,
+        },
+      });
+
+      await transaction.slot.updateMany({
+        where: {
+          id: freshBooking.training.slotId,
+          status: SlotStatus.BOOKED,
+        },
+        data: {
+          status: SlotStatus.CLOSED,
+          heldUntil: null,
+          isManuallyClosed: false,
+          closureReason: null,
+        },
+      });
+
+      await transaction.calendarSyncLog.create({
+        data: {
+          trainingId: freshBooking.training.id,
+          operation: calendarOperation,
+          status: calendarSync ? SyncStatus.SUCCESS : SyncStatus.FAILED,
+          externalEventId: calendarSync?.eventId ?? freshBooking.training.calendarEventId ?? null,
+          message: calendarSync
+            ? "Google Calendar event synced after trainer confirmed client reschedule"
+            : (calendarSyncErrorMessage ?? "Google Calendar sync failed after trainer confirmed client reschedule"),
+          payload: {
+            mode: calendarSync?.mode ?? this.appConfigService.values.googleCalendarSyncMode,
+            bookingId: freshBooking.id,
+            degraded: !calendarSync,
+          },
+        },
+      });
+
+      return {
+        status: "confirmed" as const,
+        booking: this.toPendingBookingDto(updatedBooking),
+      };
+    });
   }
 
   async rejectBooking(input: RejectBookingInput): Promise<BookingActionResult> {
@@ -1836,10 +1995,12 @@ export class BookingsService {
 
       if (booking.status === BookingStatus.RESCHEDULED) {
         if (booking.training && booking.training.status !== TrainingStatus.CANCELLED) {
+          const revertToTrainingSlot = booking.training.slotId !== booking.slotId;
           const updatedBooking = await transaction.booking.update({
             where: { id: booking.id },
             data: {
               status: BookingStatus.CONFIRMED,
+              slotId: revertToTrainingSlot ? booking.training.slotId : booking.slotId,
               trainerComment: `${booking.trainerComment ?? ""}\nПредложение закрыто тренером. ${trainerComment}`.trim(),
             },
             include: {
@@ -1847,6 +2008,10 @@ export class BookingsService {
               slot: true,
             },
           });
+
+          if (revertToTrainingSlot) {
+            await this.releaseHeldSlot(transaction, booking.slotId);
+          }
 
           return {
             status: "confirmed",

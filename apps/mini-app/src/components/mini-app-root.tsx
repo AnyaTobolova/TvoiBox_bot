@@ -113,6 +113,10 @@ function formatTime(dateIso: string): string {
 }
 
 function getStatusTone(item: ClientTrainingDto): "pending" | "success" | "danger" | "muted" {
+  if (item.isAwaitingTrainerDecision || item.hasTrainerProposal) {
+    return "pending";
+  }
+
   switch (item.bookingStatus) {
     case "PENDING":
     case "RESCHEDULED":
@@ -128,6 +132,14 @@ function getStatusTone(item: ClientTrainingDto): "pending" | "success" | "danger
 }
 
 function getStatusLabel(item: ClientTrainingDto): string {
+  if (item.isAwaitingTrainerDecision) {
+    return "Ожидает подтверждения";
+  }
+
+  if (item.hasTrainerProposal) {
+    return "Предложен перенос";
+  }
+
   switch (item.bookingStatus) {
     case "PENDING":
       return "Ожидает подтверждения";
@@ -345,6 +357,11 @@ export function MiniAppRoot() {
 
   const goBack = () => {
     startTransition(() => {
+      if (screen === "booking" && rescheduleBookingId) {
+        setRescheduleBookingId(null);
+        setSelectedSlotId("");
+        setBookingComment("");
+      }
       setScreenHistory((current) => {
         const previous = current[current.length - 1] ?? "home";
         setScreen(previous);
@@ -439,7 +456,7 @@ export function MiniAppRoot() {
         slotId: selectedSlotId,
         clientComment: bookingComment || null,
       });
-      setMessage({ tone: "success", text: "Заявка отправлена. Статус можно посмотреть в разделе «Мои записи»." });
+      setMessage({ tone: "success", text: "Запрос тренеру отправлен. Он появится в разделе «Мои записи» со статусом ожидания." });
       setSelectedSlotId("");
       setBookingComment("");
       openScreen("records");
@@ -487,12 +504,16 @@ export function MiniAppRoot() {
     setMessage(null);
 
     try {
-      await api.cancelTraining({ bookingId });
+      const response = await api.cancelTraining({ bookingId });
       await loadRecords();
-      setMessage({ tone: "success", text: "Тренировка отменена." });
+      const successMessage =
+        response.status === "confirmed"
+          ? "Запрос на перенос отменён."
+          : "Заявка или тренировка отменена.";
+      setMessage({ tone: "success", text: successMessage });
     } catch (error) {
       const normalizedError = error as Error;
-      setMessage({ tone: "error", text: normalizedError.message || "Не удалось отменить тренировку." });
+      setMessage({ tone: "error", text: normalizedError.message || "Не удалось отменить заявку или тренировку." });
     } finally {
       setIsBusy(false);
     }
@@ -500,6 +521,13 @@ export function MiniAppRoot() {
 
   const handleStartReschedule = (bookingId: string) => {
     setRescheduleBookingId(bookingId);
+    setSelectedSlotId("");
+    setBookingComment("");
+    openScreen("booking");
+  };
+
+  const handleOpenBooking = () => {
+    setRescheduleBookingId(null);
     setSelectedSlotId("");
     setBookingComment("");
     openScreen("booking");
@@ -814,7 +842,7 @@ export function MiniAppRoot() {
                 <button
                   className="primary-button"
                   disabled={isBusy}
-                  onClick={() => openScreen("booking")}
+                  onClick={handleOpenBooking}
                 >
                   Перейти к слотам
                 </button>
@@ -827,9 +855,16 @@ export function MiniAppRoot() {
                   Открыть список
                 </button>
               </article>
+              <article className="action-card action-card-home">
+                <strong>РЎРІСЏР·СЊ СЃ С‚СЂРµРЅРµСЂРѕРј</strong>
+                <p>Р•СЃР»Рё РµСЃС‚СЊ РІРѕРїСЂРѕСЃ РёР»Рё С…РѕС‡РµС€СЊ С‡С‚Рѕ-С‚Рѕ РѕР±СЃСѓРґРёС‚СЊ, РјРѕР¶РЅРѕ РЅР°РїРёСЃР°С‚СЊ РЅР°РїСЂСЏРјСѓСЋ РІ Telegram.</p>
+                <a className="secondary-button support-link-button" href="https://t.me/RostPV" target="_blank" rel="noreferrer">
+                  Написать тренеру
+                </a>
+              </article>
             </section>
 
-            <section className="panel compact-panel">
+            <section className="panel compact-panel support-panel-hidden">
               <div>
                 <h2 className="panel-title">Связь с тренером</h2>
                 <p className="panel-text">Если есть какой-то вопрос или хочешь что-то обсудить, то можешь просто написать мне.</p>
@@ -1120,7 +1155,7 @@ export function MiniAppRoot() {
               <div className="empty-state">
                 <strong>Пока нет будущих записей</strong>
                 <span>Когда будешь готов, можно сразу вернуться к выбору слота.</span>
-                <button className="primary-button" onClick={() => openScreen("booking")}>
+                <button className="primary-button" onClick={handleOpenBooking}>
                   Перейти к записи
                 </button>
               </div>
@@ -1155,10 +1190,10 @@ export function MiniAppRoot() {
                           disabled={isBusy}
                           onClick={() => void handleCancelTraining(item.bookingId)}
                         >
-                          Отменить
+                          {item.isAwaitingTrainerDecision ? "Отменить заявку" : "Отменить"}
                         </button>
                       ) : null}
-                      {item.bookingStatus === "RESCHEDULED" ? (
+                      {item.hasTrainerProposal ? (
                         <>
                           <button className="status-button" disabled={isBusy} onClick={() => void handleAcceptProposal(item.bookingId)}>
                             Принять перенос
@@ -1168,7 +1203,7 @@ export function MiniAppRoot() {
                           </button>
                         </>
                       ) : null}
-                      {item.trainingStatus && item.trainingStatus !== "CANCELLED" ? (
+                      {item.trainingStatus && item.trainingStatus !== "CANCELLED" && !item.isAwaitingTrainerDecision ? (
                         <button className="status-button" disabled={isBusy} onClick={() => void handleDownloadCalendar(item.bookingId, item.startAt)}>
                           Добавить в календарь
                         </button>

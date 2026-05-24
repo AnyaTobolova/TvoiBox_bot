@@ -73,6 +73,8 @@ export interface ClientTrainingDto {
   clientCalendarIcsUrl: string | null;
   trainerComment: string | null;
   clientComment: string | null;
+  isAwaitingTrainerDecision: boolean;
+  hasTrainerProposal: boolean;
   canCancel: boolean;
   canReschedule: boolean;
   canDelete: boolean;

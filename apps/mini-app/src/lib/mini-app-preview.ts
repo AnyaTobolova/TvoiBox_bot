@@ -508,6 +508,9 @@ function buildTrainerTraining(state: PreviewState, booking: PreviewBookingRecord
 }
 
 function buildClientTraining(booking: PreviewBookingRecord): ClientTrainingDto {
+  const hasTrainerProposal = booking.status === "RESCHEDULED" && Boolean(booking.proposedStartAt);
+  const isAwaitingTrainerDecision = booking.status === "PENDING" || (booking.status === "RESCHEDULED" && !hasTrainerProposal);
+
   return {
     bookingId: booking.id,
     bookingStatus: booking.status,
@@ -517,9 +520,11 @@ function buildClientTraining(booking: PreviewBookingRecord): ClientTrainingDto {
     clientCalendarIcsUrl: null,
     trainerComment: booking.trainerComment,
     clientComment: booking.clientComment,
+    isAwaitingTrainerDecision,
+    hasTrainerProposal,
     canCancel: booking.status === "PENDING" || booking.status === "CONFIRMED" || booking.status === "RESCHEDULED",
-    canReschedule: booking.status === "CONFIRMED" || booking.status === "RESCHEDULED",
-    canDelete: true,
+    canReschedule: booking.status === "CONFIRMED",
+    canDelete: !isAwaitingTrainerDecision,
   };
 }
 
