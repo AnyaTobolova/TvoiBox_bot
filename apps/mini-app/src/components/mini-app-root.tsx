@@ -1251,9 +1251,22 @@ export function MiniAppRoot() {
 
                   return (
                     <article className="record-card workout-card" key={item.bookingId}>
-                      <div className="workout-card__top">
-                        <div className="workout-card__date">{formatDateOnly(item.startAt)}</div>
-                        <div className="workout-card__time">{formatTime(item.startAt)}</div>
+                      <div className="workout-card__head">
+                        <div className="workout-card__top">
+                          <div className="workout-card__date">{formatDateOnly(item.startAt)}</div>
+                          <div className="workout-card__time">{formatTime(item.startAt)}</div>
+                        </div>
+                        {item.trainingStatus && item.trainingStatus !== "CANCELLED" && !item.isAwaitingTrainerDecision ? (
+                          <button
+                            className="status-button calendar-icon-button"
+                            aria-label="Добавить в календарь"
+                            title="Добавить в календарь"
+                            disabled={isBusy}
+                            onClick={() => void handleDownloadCalendar(item.bookingId, item.startAt)}
+                          >
+                            🗓
+                          </button>
+                        ) : null}
                       </div>
 
                       <div className="workout-card__status" data-tone={getStatusTone(item)}>
@@ -1266,11 +1279,6 @@ export function MiniAppRoot() {
                         {item.canReschedule ? (
                           <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => handleStartReschedule(item.bookingId)}>
                             Перенести
-                          </button>
-                        ) : null}
-                        {item.trainingStatus && item.trainingStatus !== "CANCELLED" && !item.isAwaitingTrainerDecision ? (
-                          <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleDownloadCalendar(item.bookingId, item.startAt)}>
-                            В календарь
                           </button>
                         ) : null}
                         {item.canCancel ? (

@@ -1359,9 +1359,22 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                           {formatDateTime(item.startAt)} · {item.client.phone || item.client.username || "без контакта"}
                         </p>
                       </div>
-                      <span className="status-pill" data-tone={getBookingTone(item.bookingStatus)}>
-                        {getBookingStatusLabel(item.bookingStatus)}
-                      </span>
+                      <div className="record-card-head-actions">
+                        <span className="status-pill" data-tone={getBookingTone(item.bookingStatus)}>
+                          {getBookingStatusLabel(item.bookingStatus)}
+                        </span>
+                        {item.bookingStatus !== "CANCELLED" ? (
+                          <button
+                            className="status-button calendar-icon-button"
+                            aria-label="Файл календаря"
+                            title="Файл календаря"
+                            disabled={isBusy}
+                            onClick={() => void handleDownloadBookingCalendarFile(item.bookingId, item.startAt)}
+                          >
+                            🗓
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
 
                     {item.clientComment ? <p className="record-comment">Комментарий клиента: {item.clientComment}</p> : null}
@@ -1393,15 +1406,6 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                       <a className="status-button" href={getClientContactHref(item.client)} target="_blank" rel="noreferrer">
                         Написать клиенту
                       </a>
-                      {item.bookingStatus !== "CANCELLED" ? (
-                        <button
-                          className="secondary-button"
-                          disabled={isBusy}
-                          onClick={() => void handleDownloadBookingCalendarFile(item.bookingId, item.startAt)}
-                        >
-                          Файл календаря
-                        </button>
-                      ) : null}
                       {item.bookingStatus !== "CANCELLED" ? (
                         <button className="secondary-button" disabled={isBusy} onClick={() => void handleCancelTraining(item.bookingId)}>
                           Отменить

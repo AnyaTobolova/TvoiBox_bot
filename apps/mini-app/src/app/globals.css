@@ -673,34 +673,42 @@ a {
 
 .record-card {
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 14px;
 }
 
 .record-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+}
+
+.record-card-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .record-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-family: var(--font-heading);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .record-meta {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.45;
+  font-size: 14px;
 }
 
 .record-comment {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.45;
+  font-size: 14px;
   white-space: pre-line;
 }
 
@@ -738,8 +746,8 @@ a {
 .record-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 7px;
+  margin-top: 12px;
 }
 
 .compact-stack {
@@ -747,10 +755,11 @@ a {
 }
 
 .status-button {
-  padding: 10px 14px;
+  padding: 9px 13px;
   background: rgba(20, 20, 20, 0.06);
   color: var(--brand-black);
-  min-height: 46px;
+  min-height: 40px;
+  font-size: 14px;
 }
 
 .summary-grid {
@@ -1004,16 +1013,16 @@ a {
 .trainer-thought-title {
   max-width: 620px;
   color: #111111;
-  font-size: clamp(30px, 3.4vw, 48px);
-  line-height: 1.06;
+  font-size: clamp(26px, 3vw, 42px);
+  line-height: 1.03;
 }
 
 .trainer-thought-lead {
   max-width: 520px;
-  margin-top: 28px;
+  margin-top: 18px;
   color: #5f5f5f;
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.58;
 }
 
 .trainer-thought-panel {
@@ -1040,16 +1049,16 @@ a {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(140px, 1fr));
-  gap: 10px;
-  margin-top: 16px;
-  max-width: 340px;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 310px;
   justify-content: start;
 }
 
 .trainer-thought-card {
   min-width: 0;
-  padding: 12px 14px 13px;
-  border-radius: 18px;
+  padding: 10px 12px 11px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.74);
   border: 1px solid rgba(21, 21, 21, 0.06);
   backdrop-filter: blur(10px);
@@ -1061,7 +1070,7 @@ a {
 }
 
 .trainer-thought-card strong {
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.18;
   font-weight: 600;
 }
@@ -1069,7 +1078,7 @@ a {
 .trainer-thought-card span {
   order: -1;
   color: rgba(24, 21, 21, 0.42);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -1121,26 +1130,26 @@ a {
 
 .hero-copy-compact {
   max-width: 420px;
-  margin-top: 18px;
+  margin-top: 10px;
 }
 
 .hero-title-compact {
   margin: 0;
-  max-width: 320px;
+  max-width: 290px;
   color: #111111;
-  font-size: clamp(28px, 4vw, 32px);
+  font-size: clamp(24px, 3.4vw, 29px);
   line-height: 1.05;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 
 .hero-lead-compact {
-  max-width: 430px;
-  margin-top: 12px;
+  max-width: 390px;
+  margin-top: 8px;
   margin-bottom: 0;
   color: #666666;
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.48;
   font-weight: 500;
 }
 
@@ -1150,27 +1159,27 @@ a {
 
 .home-actions-grid-compact .action-card-home {
   min-height: 0;
-  gap: 10px;
-  padding: 16px;
+  gap: 8px;
+  padding: 14px;
   align-content: start;
 }
 
 .home-actions-grid-compact .action-card strong {
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1.08;
   font-family: var(--font-heading);
 }
 
 .home-actions-grid-compact .action-card p {
-  font-size: 14px;
-  line-height: 1.48;
+  font-size: 13px;
+  line-height: 1.42;
   color: #666666;
 }
 
 .action-card-button {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -1208,7 +1217,7 @@ a {
 
 .booking-panel .panel-title,
 .no-slot-panel .panel-title {
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -1222,10 +1231,10 @@ a {
 }
 
 .booking-rules-note {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #666666;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 1.48;
 }
 
 .checkbox-row-soft {
@@ -1242,34 +1251,34 @@ a {
 }
 
 .slot-day-compact {
-  padding: 16px;
-  margin-bottom: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
   border-radius: 22px;
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .slot-day-compact .slot-day-title {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   color: #111111;
-  font-size: 18px;
+  font-size: 16px;
   font-family: var(--font-body);
   font-weight: 800;
   letter-spacing: 0;
 }
 
 .slot-day-compact .time-grid {
-  gap: 10px;
+  gap: 8px;
 }
 
 .slot-day-compact .time-button {
-  min-width: 92px;
-  min-height: 46px;
-  padding: 0 18px;
+  min-width: 86px;
+  min-height: 42px;
+  padding: 0 16px;
   border-radius: 999px;
   background: #f7f7f7;
   border: 1px solid transparent;
   color: #222222;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -1306,7 +1315,7 @@ a {
 
 .booking-panel .field textarea,
 .no-slot-panel .field textarea {
-  min-height: 90px;
+  min-height: 82px;
 }
 
 .booking-form-grid {
@@ -1315,7 +1324,7 @@ a {
 
 .booking-actions {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .booking-submit-button,
@@ -1328,18 +1337,18 @@ a {
 
 .no-slot-panel {
   margin-top: 10px;
-  padding: 18px;
+  padding: 16px;
   border-radius: 24px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   background: #ffffff;
 }
 
 .no-slot-header {
-  margin-bottom: 26px;
+  margin-bottom: 18px;
 }
 
 .no-slot-step {
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .step-label {
@@ -1353,25 +1362,25 @@ a {
 }
 
 .step-title {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: #111111;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .chip-group-soft {
-  gap: 10px;
+  gap: 8px;
 }
 
 .chip-button-soft {
   width: fit-content;
-  height: 40px;
-  padding: 0 18px;
+  height: 36px;
+  padding: 0 16px;
   border-radius: 999px;
   background: #f6f6f6;
   border: 1px solid transparent;
   color: #222222;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   transition: all 0.25s ease;
 }
@@ -1398,18 +1407,26 @@ a {
 }
 
 .workout-card {
-  padding: 16px;
+  padding: 14px;
   border-radius: 22px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
+.workout-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .workout-card__top {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
 }
 
 .workout-card__date,
@@ -1428,7 +1445,7 @@ a {
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin: 8px 0 10px;
 }
 
 .workout-card__status[data-tone="pending"] {
@@ -1461,18 +1478,32 @@ a {
 .workout-card__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .action-btn {
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 12px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #f5f5f5;
   color: #111111;
+}
+
+.calendar-icon-button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .action-btn--secondary {
@@ -1575,7 +1606,7 @@ a {
   }
 
   .hero-card-compact {
-    padding: 16px;
+    padding: 14px;
   }
 
   .hero-card-top {
@@ -1583,26 +1614,26 @@ a {
   }
 
   .hero-avatar-frame {
-    width: 72px;
-    height: 72px;
+    width: 68px;
+    height: 68px;
     border-radius: 20px;
   }
 
   .hero-copy-compact {
-    margin-top: 14px;
+    margin-top: 6px;
     max-width: 100%;
   }
 
   .hero-title-compact {
-    max-width: 260px;
-    font-size: 24px;
+    max-width: 220px;
+    font-size: 18px;
     line-height: 1.04;
   }
 
   .hero-lead-compact {
-    margin-top: 10px;
-    font-size: 14px;
-    line-height: 1.5;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .hero-grid {
@@ -1698,16 +1729,16 @@ a {
   }
 
   .home-actions-grid-compact .action-card-home {
-    padding: 14px;
+    padding: 12px;
   }
 
   .home-actions-grid-compact .action-card strong {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .home-actions-grid-compact .action-card p {
-    font-size: 12px;
-    line-height: 1.38;
+    font-size: 11px;
+    line-height: 1.34;
   }
 
   .action-card-button,
@@ -1747,8 +1778,8 @@ a {
   }
 
   .slot-day-compact {
-    padding: 12px;
-    margin-bottom: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
     border-radius: 18px;
   }
 
@@ -1757,8 +1788,8 @@ a {
   }
 
   .slot-day-compact .slot-day-title {
-    margin-bottom: 10px;
-    font-size: 16px;
+    margin-bottom: 8px;
+    font-size: 14px;
   }
 
   .time-grid {
@@ -1788,7 +1819,7 @@ a {
 
   .booking-panel .panel-title,
   .no-slot-panel .panel-title {
-    font-size: 24px;
+    font-size: 20px;
   }
 
   .booking-panel .panel-text,
@@ -1804,15 +1835,15 @@ a {
 
   .slot-day-compact .time-button {
     min-width: calc(50% - 5px);
-    min-height: 42px;
-    padding: 0 14px;
-    font-size: 15px;
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 14px;
   }
 
   .chip-button-soft {
-    height: 38px;
-    padding: 0 16px;
-    font-size: 14px;
+    height: 34px;
+    padding: 0 14px;
+    font-size: 13px;
   }
 
   .booking-submit-button,
@@ -1822,17 +1853,17 @@ a {
   }
 
   .workout-card {
-    padding: 14px;
-    border-radius: 20px;
+    padding: 12px;
+    border-radius: 18px;
   }
 
   .workout-card__date,
   .workout-card__time {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .workout-card__comment {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .workout-card__actions {
@@ -1840,9 +1871,17 @@ a {
   }
 
   .action-btn {
-    min-height: 38px;
-    padding: 0 12px;
-    font-size: 13px;
+    min-height: 34px;
+    padding: 0 11px;
+    font-size: 12px;
+  }
+
+  .calendar-icon-button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 15px;
   }
 
   .loader-state-compact strong {
