@@ -198,6 +198,7 @@ export function MiniAppRoot() {
   const [closureInfo, setClosureInfo] = useState<SlotClosureInfo | null>(null);
   const [bookingRules, setBookingRules] = useState<{ bookingHorizonDays: number; sameDayBookingCutoff: number } | null>(null);
   const [records, setRecords] = useState<ClientTrainingDto[]>([]);
+  const [recordsLoaded, setRecordsLoaded] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [bookingComment, setBookingComment] = useState("");
   const [rescheduleBookingId, setRescheduleBookingId] = useState<string | null>(null);
@@ -307,13 +308,19 @@ export function MiniAppRoot() {
     }
   };
 
-  const loadRecords = async () => {
-    setIsBusy(true);
+  const loadRecords = async (showLoader = true) => {
+    if (showLoader) {
+      setIsBusy(true);
+    }
+
     try {
       const response = await api.getClientTrainings();
       setRecords(response.items);
+      setRecordsLoaded(true);
     } finally {
-      setIsBusy(false);
+      if (showLoader) {
+        setIsBusy(false);
+      }
     }
   };
 
@@ -343,10 +350,14 @@ export function MiniAppRoot() {
       void loadBookingContext();
     }
 
+    if (!recordsLoaded) {
+      void loadRecords(false);
+    }
+
     if (screen === "records") {
       void loadRecords();
     }
-  }, [authMode, screen]);
+  }, [authMode, screen, recordsLoaded]);
 
   const openScreen = (nextScreen: ScreenId) => {
     startTransition(() => {
@@ -856,8 +867,8 @@ export function MiniAppRoot() {
                 </button>
               </article>
               <article className="action-card action-card-home">
-                <strong>РЎРІСЏР·СЊ СЃ С‚СЂРµРЅРµСЂРѕРј</strong>
-                <p>Р•СЃР»Рё РµСЃС‚СЊ РІРѕРїСЂРѕСЃ РёР»Рё С…РѕС‡РµС€СЊ С‡С‚Рѕ-С‚Рѕ РѕР±СЃСѓРґРёС‚СЊ, РјРѕР¶РЅРѕ РЅР°РїРёСЃР°С‚СЊ РЅР°РїСЂСЏРјСѓСЋ РІ Telegram.</p>
+                <strong>Связь с тренером</strong>
+                <p>Если есть вопрос или хочешь что-то обсудить, можно написать напрямую в Telegram.</p>
                 <a className="secondary-button support-link-button" href="https://t.me/RostPV" target="_blank" rel="noreferrer">
                   Написать тренеру
                 </a>
