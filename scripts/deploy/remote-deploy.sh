@@ -15,6 +15,26 @@ SHARED_DIR="${DEPLOY_ROOT}/shared"
 RELEASE_DIR="${RELEASES_DIR}/${RELEASE_NAME}"
 CURRENT_LINK="${DEPLOY_ROOT}/current"
 
+retry_curl() {
+  local url="$1"
+  local label="$2"
+  local attempts="${3:-24}"
+  local delay_seconds="${4:-5}"
+
+  for ((attempt=1; attempt<=attempts; attempt++)); do
+    if curl -fsS "$url" >/dev/null; then
+      echo "[auto-deploy] ${label} is ready (${url})"
+      return 0
+    fi
+
+    echo "[auto-deploy] waiting for ${label} (${attempt}/${attempts})"
+    sleep "${delay_seconds}"
+  done
+
+  echo "[auto-deploy] ${label} did not become ready: ${url}"
+  return 1
+}
+
 echo "[auto-deploy] DEPLOY_ROOT=${DEPLOY_ROOT}"
 echo "[auto-deploy] RELEASE_NAME=${RELEASE_NAME}"
 echo "[auto-deploy] BOOTSTRAP_ENV_ROOT=${BOOTSTRAP_ENV_ROOT}"
@@ -68,9 +88,9 @@ cd "${CURRENT_LINK}"
 bash scripts/deploy/deploy-server.sh
 
 API_PORT_VALUE="$(grep -E '^API_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
-curl -fsS "http://127.0.0.1:${API_PORT_VALUE:-3300}/health" >/dev/null
+retry_curl "http://127.0.0.1:${API_PORT_VALUE:-3300}/health" "API health"
 MINI_APP_PORT_VALUE="$(grep -E '^MINI_APP_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
-curl -fsS "http://127.0.0.1:${MINI_APP_PORT_VALUE:-3302}/" >/dev/null
+retry_curl "http://127.0.0.1:${MINI_APP_PORT_VALUE:-3302}/" "Mini app root"
 
 if [[ -f "${RELEASE_ARCHIVE}" ]]; then
   rm -f "${RELEASE_ARCHIVE}"
