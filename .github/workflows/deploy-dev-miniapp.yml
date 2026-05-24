@@ -100,7 +100,7 @@ jobs:
             curl -fsSL '${DEV_HEALTHCHECK_URL}' && \
             curl -I -fsSL '${DEV_APP_URL}'"
 
-      - name: Diagnostic: verify dev API health endpoint from GitHub runner
+      - name: "Diagnostic: verify dev API health endpoint from GitHub runner"
         continue-on-error: true
         shell: bash
         run: |
@@ -114,7 +114,7 @@ jobs:
           echo "[verify] API health check failed after retries"
           exit 1
 
-      - name: Diagnostic: verify dev mini app root from GitHub runner
+      - name: "Diagnostic: verify dev mini app root from GitHub runner"
         continue-on-error: true
         shell: bash
         run: |
