@@ -688,6 +688,8 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .record-title {
@@ -1232,10 +1234,10 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
   font-size: 16px;
   line-height: 1;
@@ -1245,8 +1247,8 @@ a {
 .icon-button-compact svg,
 .calendar-icon-button svg,
 .action-btn--icon svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: block;
   margin: auto;
 }
@@ -1563,10 +1565,10 @@ a {
 }
 
 .calendar-icon-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
   border-radius: 999px;
   font-size: 0;
@@ -1580,17 +1582,17 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  min-width: 30px;
+  width: 34px;
+  min-width: 34px;
   padding: 0;
   font-size: 0;
 }
 
 .action-btn--icon-tight {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
 }
 
 .trainer-record-list .record-card,
@@ -1787,10 +1789,10 @@ a {
   }
 
   .icon-button-compact {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    min-height: 28px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
     font-size: 14px;
   }
 
@@ -2018,9 +2020,9 @@ a {
   .field input,
   .field textarea,
   .field select {
-    padding: 9px 10px;
+    padding: 8px 10px;
     border-radius: 12px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .field textarea {
@@ -2055,6 +2057,21 @@ a {
   .record-card-head {
     flex-direction: column;
     gap: 8px;
+  }
+
+  .trainer-workout-card .record-card-head,
+  .trainer-no-slot-list .record-card-head,
+  .trainer-clients-list .record-card-head {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .trainer-workout-card .record-card-head > :first-child,
+  .trainer-no-slot-list .record-card-head > :first-child,
+  .trainer-clients-list .record-card-head > :first-child {
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   .record-title {
@@ -2200,14 +2217,14 @@ a {
   .trainer-thought-title {
     max-width: none;
     font-size: 18px;
-    line-height: 1.02;
+    line-height: 1.08;
   }
 
   .trainer-thought-lead {
     max-width: none;
     margin-top: 6px;
     font-size: 11px;
-    line-height: 1.35;
+    line-height: 1.4;
   }
 
   .trainer-hero-grid {
@@ -2238,7 +2255,7 @@ a {
 
   .trainer-thought-card {
     width: 100%;
-    padding: 7px 8px;
+    padding: 6px 7px;
     border-radius: 12px;
   }
 
@@ -2248,16 +2265,21 @@ a {
   }
 
   .trainer-thought-card strong {
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1.18;
   }
 
   .trainer-thought-card span {
-    font-size: 7px;
+    font-size: 6px;
   }
 
   .slot-range-grid {
     gap: 10px;
+  }
+
+  .slot-range-grid .field input {
+    min-height: 42px;
+    font-size: 12px;
   }
 
   .search-row {

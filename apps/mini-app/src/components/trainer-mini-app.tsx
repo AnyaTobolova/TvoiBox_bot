@@ -155,8 +155,13 @@ function getNextFullHour(): Date {
 }
 
 function buildDefaultRange(): SlotRangeState {
+  return buildRangeWithDays(14);
+}
+
+function buildRangeWithDays(days: number): SlotRangeState {
   const start = getNextFullHour();
-  const end = new Date(start.getTime() + 14 * DAY_MS);
+  const safeDays = Number.isFinite(days) && days > 0 ? days : 14;
+  const end = new Date(start.getTime() + safeDays * DAY_MS);
   return {
     from: toLocalDateTimeInputValue(start),
     to: toLocalDateTimeInputValue(end),
@@ -337,6 +342,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
   const [trainings, setTrainings] = useState<TrainerTrainingDto[]>([]);
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [slotRange, setSlotRange] = useState<SlotRangeState>(defaultRange);
+  const [slotRangeWasCustomized, setSlotRangeWasCustomized] = useState(false);
   const [bulkSlotForm, setBulkSlotForm] = useState<BulkSlotFormState>({
     startAt: defaultRange.from,
     endAt: defaultRange.to,
@@ -427,9 +433,15 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
   useEffect(() => {
     if (screen === "slots") {
+      if (!slotRangeWasCustomized) {
+        const horizonRange = buildRangeWithDays(settingsMeta.bookingHorizonDays);
+        if (slotRange.from !== horizonRange.from || slotRange.to !== horizonRange.to) {
+          setSlotRange(horizonRange);
+        }
+      }
       void loadSlots();
     }
-  }, [screen, slotRange.from, slotRange.to]);
+  }, [screen, slotRange.from, slotRange.to, settingsMeta.bookingHorizonDays, slotRangeWasCustomized]);
 
   function renderCompactHeader(
     title: string,
@@ -1642,22 +1654,28 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
             {renderCompactHeader("Слоты", "Нажимай по часу, чтобы открыть или закрыть слот. Для диапазонов используй форму ниже.", () => setScreen("settings"), () => void loadSlots())}
 
             <div className="form-grid form-grid-split slot-range-grid">
-              <label className="field">
-                <span className="field-label">Показать слоты от</span>
-                <input
-                  type="date"
-                  value={slotRange.from.slice(0, 10)}
-                  onChange={(event) => setSlotRange((current) => ({ ...current, from: `${event.target.value}T00:00` }))}
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">Показать слоты до</span>
-                <input
-                  type="date"
-                  value={slotRange.to.slice(0, 10)}
-                  onChange={(event) => setSlotRange((current) => ({ ...current, to: `${event.target.value}T23:00` }))}
-                />
-              </label>
+                <label className="field">
+                  <span className="field-label">Показать слоты от</span>
+                  <input
+                    type="date"
+                    value={slotRange.from.slice(0, 10)}
+                    onChange={(event) => {
+                      setSlotRangeWasCustomized(true);
+                      setSlotRange((current) => ({ ...current, from: `${event.target.value}T00:00` }));
+                    }}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">Показать слоты до</span>
+                  <input
+                    type="date"
+                    value={slotRange.to.slice(0, 10)}
+                    onChange={(event) => {
+                      setSlotRangeWasCustomized(true);
+                      setSlotRange((current) => ({ ...current, to: `${event.target.value}T23:00` }));
+                    }}
+                  />
+                </label>
             </div>
 
             <div className="slot-legend">
