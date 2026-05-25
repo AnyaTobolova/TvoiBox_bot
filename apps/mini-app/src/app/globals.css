@@ -1190,6 +1190,26 @@ a {
   gap: 12px;
 }
 
+.panel-header-slim {
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.back-link-inline {
+  margin-bottom: 8px;
+}
+
+.icon-button-compact {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  justify-content: center;
+}
+
 .secondary-button-compact {
   min-height: 40px;
   padding: 0 14px;
@@ -1677,6 +1697,14 @@ a {
 
   .panel-header .secondary-button {
     padding: 9px 12px;
+  }
+
+  .icon-button-compact {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 16px;
   }
 
   .hero-title-brand,

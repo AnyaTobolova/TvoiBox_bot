@@ -216,6 +216,21 @@ export function registerStartHandler(bot: Bot<Context>, dependencies: StartHandl
     });
   });
 
+  bot.command("trainerapp", async (context) => {
+    const trainerMiniAppUrl = dependencies.config.miniAppTrainerUrl.trim();
+
+    if (!trainerMiniAppUrl) {
+      await context.reply("Ссылка на тренерский экран для этого бота пока не настроена.");
+      return;
+    }
+
+    await context.reply("Открыть тренерский экран:", {
+      reply_markup: {
+        inline_keyboard: [[{ text: dependencies.config.miniAppTrainerLabel, web_app: { url: trainerMiniAppUrl } }]],
+      },
+    });
+  });
+
   bot.hears(/^start$/iu, async (context) => {
     await handleStart(context, dependencies, "start-text");
   });

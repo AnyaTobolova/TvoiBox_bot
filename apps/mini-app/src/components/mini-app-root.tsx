@@ -1208,17 +1208,23 @@ export function MiniAppRoot() {
         ) : null}
         {screen === "records" ? (
           <section className="panel">
-            <div className="panel-header panel-header-compact">
+            <div className="panel-header panel-header-compact panel-header-slim">
               <div>
+                <button className="back-link back-link-inline" disabled={isBusy} onClick={goBack}>
+                  ← Назад
+                </button>
                 <h2 className="panel-title">Мои записи</h2>
                 <p className="panel-text">Здесь собраны будущие записи и актуальные статусы по ним.</p>
               </div>
               <div className="panel-header-actions">
-                <button className="secondary-button secondary-button-compact" disabled={isBusy} onClick={goBack}>
-                  Назад
-                </button>
-                <button className="secondary-button secondary-button-compact" disabled={isBusy} onClick={() => void loadRecords()}>
-                  Обновить
+                <button
+                  className="secondary-button secondary-button-compact icon-button-compact"
+                  aria-label="Обновить записи"
+                  title="Обновить"
+                  disabled={isBusy}
+                  onClick={() => void loadRecords()}
+                >
+                  ↻
                 </button>
               </div>
             </div>
