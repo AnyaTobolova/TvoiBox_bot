@@ -687,7 +687,7 @@ a {
 .record-card-head-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -781,17 +781,17 @@ a {
 }
 
 .summary-card strong {
-  font-family: var(--font-heading);
-  font-size: 16px;
-  line-height: 1.05;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .summary-card span {
   color: rgba(24, 21, 21, 0.46);
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.32;
 }
 
 .empty-state,
@@ -1234,10 +1234,10 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
   font-size: 16px;
   line-height: 1;
@@ -1246,9 +1246,10 @@ a {
 
 .icon-button-compact svg,
 .calendar-icon-button svg,
-.action-btn--icon svg {
-  width: 20px;
-  height: 20px;
+.action-btn--icon svg,
+.action-btn--icon-tight svg {
+  width: 22px;
+  height: 22px;
   display: block;
   margin: auto;
 }
@@ -1487,7 +1488,7 @@ a {
 }
 
 .trainer-workout-card .workout-card__head {
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .workout-card__top {
@@ -1514,7 +1515,7 @@ a {
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  margin: 4px 0 6px;
+  margin: 2px 0 6px;
 }
 
 .workout-card__status[data-tone="pending"] {
@@ -1551,13 +1552,13 @@ a {
 }
 
 .action-btn {
-  min-height: 28px;
-  padding: 0 8px;
+  min-height: 30px;
+  padding: 0 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #f5f5f5;
@@ -1584,6 +1585,8 @@ a {
   justify-content: center;
   width: 34px;
   min-width: 34px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
   font-size: 0;
 }
@@ -1604,7 +1607,14 @@ a {
 .trainer-record-list .record-meta,
 .trainer-no-slot-list .record-meta,
 .trainer-clients-list .record-meta {
-  margin-top: 2px;
+  margin-top: 0;
+  font-size: 12px;
+  line-height: 1.24;
+}
+
+.trainer-record-list .workout-card__top,
+.trainer-no-slot-list .workout-card__top {
+  margin-bottom: 1px;
 }
 
 .action-btn--secondary {
@@ -2121,12 +2131,12 @@ a {
   }
 
   .summary-card strong {
-    font-size: 15px;
+    font-size: 18px;
   }
 
   .summary-card span {
-    font-size: 9px;
-    line-height: 1.35;
+    font-size: 11px;
+    line-height: 1.28;
   }
 
   .panel-subsection {
@@ -2181,10 +2191,10 @@ a {
   }
 
   .panel-header-slim .icon-button-compact {
-    width: 30px;
-    min-width: 30px;
-    height: 30px;
-    min-height: 30px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
     font-size: 16px;
     border-radius: 999px;
   }
@@ -2216,15 +2226,15 @@ a {
 
   .trainer-thought-title {
     max-width: none;
-    font-size: 18px;
-    line-height: 1.08;
+    font-size: 24px;
+    line-height: 1.04;
   }
 
   .trainer-thought-lead {
     max-width: none;
     margin-top: 6px;
-    font-size: 11px;
-    line-height: 1.4;
+    font-size: 13px;
+    line-height: 1.42;
   }
 
   .trainer-hero-grid {
@@ -2249,13 +2259,13 @@ a {
   .trainer-thought-cards {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
+    gap: 6px;
     max-width: none;
   }
 
   .trainer-thought-card {
     width: 100%;
-    padding: 6px 7px;
+    padding: 8px 9px;
     border-radius: 12px;
   }
 
@@ -2265,12 +2275,13 @@ a {
   }
 
   .trainer-thought-card strong {
-    font-size: 9px;
-    line-height: 1.18;
+    font-size: 16px;
+    line-height: 1.12;
   }
 
   .trainer-thought-card span {
-    font-size: 6px;
+    font-size: 10px;
+    line-height: 1.22;
   }
 
   .slot-range-grid {
@@ -2279,7 +2290,7 @@ a {
 
   .slot-range-grid .field input {
     min-height: 42px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .search-row {
@@ -2315,5 +2326,37 @@ a {
 
   .record-card-head-actions {
     gap: 6px;
+  }
+
+  .trainer-settings-panel .panel-title,
+  .trainer-slots-panel .panel-title {
+    font-size: 16px;
+  }
+
+  .trainer-settings-panel .panel-text,
+  .trainer-slots-panel .panel-text {
+    font-size: 12px;
+    line-height: 1.38;
+  }
+
+  .trainer-settings-panel .field-label,
+  .trainer-slots-panel .field-label {
+    font-size: 11px;
+  }
+
+  .trainer-settings-panel .field input,
+  .trainer-settings-panel .field select,
+  .trainer-settings-panel .field textarea,
+  .trainer-slots-panel .field input,
+  .trainer-slots-panel .field select {
+    min-height: 42px;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .trainer-settings-panel .chip-button {
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 12px;
   }
 }

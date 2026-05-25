@@ -258,7 +258,7 @@ function RefreshIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="2.4"
       />
     </svg>
   );
@@ -282,8 +282,8 @@ function ArrowLeftIcon() {
 function CalendarIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
+      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
     </svg>
   );
 }
@@ -297,9 +297,9 @@ function TelegramIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.8"
+        strokeWidth="2.2"
       />
-      <path d="m8.5 14.4 9.1-7.4M10.1 19.6l1.8-4.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path d="m8.5 14.4 9.1-7.4M10.1 19.6l1.8-4.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
     </svg>
   );
 }
@@ -1205,7 +1205,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         ) : null}
 
         {screen === "bookings" ? (
-          <section className="panel">
+          <section className="panel trainer-slots-panel">
             {renderCompactHeader("Заявки", "Здесь только неподтверждённые записи и активные переносы.", () => setScreen("home"), () => void loadBookings())}
 
             {visibleBookings.length === 0 ? (
@@ -1449,7 +1449,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         ) : null}
 
         {screen === "trainings" ? (
-          <section className="panel">
+          <section className="panel trainer-settings-panel">
             {renderCompactHeader(
               "Тренировки",
               "Все тренировки в выбранном диапазоне: подтверждённые, отменённые и перенесённые.",
