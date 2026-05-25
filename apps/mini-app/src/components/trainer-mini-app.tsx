@@ -1469,6 +1469,16 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                           <span className="workout-card__time">{formatTime(item.startAt)}</span>
                         </div>
                         <div className="record-card-head-actions">
+                          <a
+                            className="action-btn action-btn--secondary action-btn--icon action-btn--icon-tight"
+                            href={getClientContactHref(item.client)}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Написать клиенту в Telegram"
+                            title="Написать клиенту в Telegram"
+                          >
+                            <TelegramIcon />
+                          </a>
                           {item.bookingStatus !== "CANCELLED" ? (
                             <button
                               className="action-btn action-btn--secondary calendar-icon-button"
@@ -1513,16 +1523,6 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     ) : null}
 
                     <div className="record-actions workout-card__actions">
-                      <a
-                        className="action-btn action-btn--secondary action-btn--icon action-btn--icon-tight"
-                        href={getClientContactHref(item.client)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="Написать клиенту в Telegram"
-                        title="Написать клиенту в Telegram"
-                      >
-                        <TelegramIcon />
-                      </a>
                       {item.bookingStatus !== "CANCELLED" ? (
                         <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleCancelTraining(item.bookingId)}>
                           Отменить
