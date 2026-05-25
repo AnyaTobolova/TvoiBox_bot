@@ -1195,17 +1195,26 @@ a {
   margin-bottom: 10px;
 }
 
+.panel-header-slim > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.panel-header-slim .panel-text {
+  max-width: none;
+}
+
 .back-link-inline {
   margin-bottom: 8px;
 }
 
 .icon-button-compact {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
   justify-content: center;
 }
@@ -2055,6 +2064,43 @@ a {
   .panel-header-actions .secondary-button {
     flex: 1 1 auto;
     min-width: 120px;
+  }
+
+  .panel-header-slim {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 8px;
+    row-gap: 6px;
+  }
+
+  .panel-header-slim .panel-header-actions {
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+  }
+
+  .panel-header-slim .panel-header-actions .secondary-button {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .panel-header-slim .icon-button-compact {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+    font-size: 18px;
+    border-radius: 999px;
+  }
+
+  .panel-header-slim .panel-title {
+    margin-bottom: 4px;
+  }
+
+  .panel-header-slim .panel-text {
+    max-width: none;
+    line-height: 1.42;
   }
 
   .support-contact {
