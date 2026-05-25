@@ -16,6 +16,9 @@ interface StartHandlerDependencies {
   resolveRole(userId: number): UserRole;
 }
 
+const MINI_APP_CLIENT_BUTTON_LABEL = "Открыть mini app";
+const MINI_APP_TRAINER_BUTTON_LABEL = "Открыть тренерский экран";
+
 function buildMiniAppInlineKeyboard(config: BotRuntimeConfig) {
   const miniAppUrl = config.miniAppUrl.trim();
   const trainerMiniAppUrl = config.miniAppTrainerUrl.trim();
@@ -26,9 +29,9 @@ function buildMiniAppInlineKeyboard(config: BotRuntimeConfig) {
 
   return {
     inline_keyboard: [
-      [{ text: config.miniAppLabel, web_app: { url: miniAppUrl } }],
+      [{ text: MINI_APP_CLIENT_BUTTON_LABEL, web_app: { url: miniAppUrl } }],
       ...(trainerMiniAppUrl
-        ? [[{ text: config.miniAppTrainerLabel, web_app: { url: trainerMiniAppUrl } }]]
+        ? [[{ text: MINI_APP_TRAINER_BUTTON_LABEL, web_app: { url: trainerMiniAppUrl } }]]
         : []),
     ],
   };
@@ -44,9 +47,9 @@ function buildMiniAppReplyKeyboard(config: BotRuntimeConfig) {
 
   return {
     keyboard: [
-      [{ text: config.miniAppLabel, web_app: { url: miniAppUrl } }],
+      [{ text: MINI_APP_CLIENT_BUTTON_LABEL, web_app: { url: miniAppUrl } }],
       ...(trainerMiniAppUrl
-        ? [[{ text: config.miniAppTrainerLabel, web_app: { url: trainerMiniAppUrl } }]]
+        ? [[{ text: MINI_APP_TRAINER_BUTTON_LABEL, web_app: { url: trainerMiniAppUrl } }]]
         : []),
     ],
     resize_keyboard: true,
@@ -226,7 +229,7 @@ export function registerStartHandler(bot: Bot<Context>, dependencies: StartHandl
 
     await context.reply("Открыть тренерский экран:", {
       reply_markup: {
-        inline_keyboard: [[{ text: dependencies.config.miniAppTrainerLabel, web_app: { url: trainerMiniAppUrl } }]],
+        inline_keyboard: [[{ text: MINI_APP_TRAINER_BUTTON_LABEL, web_app: { url: trainerMiniAppUrl } }]],
       },
     });
   });
