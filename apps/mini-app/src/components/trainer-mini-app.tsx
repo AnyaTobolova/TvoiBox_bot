@@ -236,6 +236,54 @@ function getClientContactHref(client: { username: string | null; telegramId: str
   return `tg://user?id=${client.telegramId}`;
 }
 
+function sortPendingBookings(items: PendingBookingDto[]): PendingBookingDto[] {
+  return [...items].sort((left, right) => left.slot.startAt.localeCompare(right.slot.startAt));
+}
+
+function sortTrainerTrainings(items: TrainerTrainingDto[]): TrainerTrainingDto[] {
+  return [...items].sort((left, right) => left.startAt.localeCompare(right.startAt));
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M21 5 3.8 11.6c-.8.3-.8 1.4.1 1.6l4.4 1.3 1.7 5.1c.3.8 1.4.9 1.8.2l2.4-3.5 4.4 3.3c.7.5 1.7.1 1.8-.8L22 6.4c.1-1-.9-1.8-1.8-1.4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path d="m8.5 14.4 9.1-7.4M10.1 19.6l1.8-4.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 function normalizeUiErrorMessage(error: Error): string {
   const raw = error.message?.trim() || "Не удалось выполнить действие.";
 
@@ -310,9 +358,10 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
   const slotGroups = groupSlotsByDay(slots);
   const trainerName = session.profile?.fullName || [session.session.firstName, session.session.lastName].filter(Boolean).join(" ") || "Тренер";
 
-  const visibleBookings = bookings.filter((item) => item.status === "PENDING" || item.status === "RESCHEDULED");
+  const visibleBookings = sortPendingBookings(bookings.filter((item) => item.status === "PENDING" || item.status === "RESCHEDULED"));
   const activeNoSlotRequests = noSlotRequests.filter((item) => item.status !== "ARCHIVED");
-  const upcomingTrainings = trainings
+  const sortedTrainings = sortTrainerTrainings(trainings);
+  const upcomingTrainings = sortedTrainings
     .filter((item) => new Date(item.startAt).getTime() >= Date.now())
     .sort((left, right) => left.startAt.localeCompare(right.startAt));
   const nearestTrainingTime = upcomingTrainings[0] ? formatTime(upcomingTrainings[0].startAt) : "—";
@@ -392,7 +441,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
               disabled={isBusy}
               onClick={onRefresh}
             >
-              ↻
+              <RefreshIcon />
             </button>
           ) : null}
           {extraAction}
@@ -430,8 +479,8 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         api.getTrainerBlacklist(),
       ]);
 
-      setBookings(bookingsResponse.items);
-      setTrainings(trainingsResponse.items);
+      setBookings(sortPendingBookings(bookingsResponse.items));
+      setTrainings(sortTrainerTrainings(trainingsResponse.items));
       setNoSlotRequests(noSlotResponse.items);
       setBlacklist(blacklistResponse.items);
     });
@@ -443,7 +492,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         api.getTrainerBookings(),
         api.getTrainerNoSlotRequests(),
       ]);
-      setBookings(bookingsResponse.items);
+      setBookings(sortPendingBookings(bookingsResponse.items));
       setNoSlotRequests(noSlotResponse.items);
     });
   }
@@ -454,7 +503,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         from: toMoscowIsoDateTimeOrThrow(slotRange.from),
         to: toMoscowIsoDateTimeOrThrow(slotRange.to),
       });
-      setTrainings(response.items);
+      setTrainings(sortTrainerTrainings(response.items));
     });
   }
 
@@ -909,8 +958,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                 <div className="trainer-hero-copy">
                   <h1 className="hero-title trainer-thought-title">
                     <span className="hero-title-line">Сила начинается не с удара.</span>
-                    <span className="hero-title-line">Сила начинается</span>
-                    <span className="hero-title-line">с уверенности в себе.</span>
+                    <span className="hero-title-line">Сила начинается с уверенности в себе.</span>
                   </h1>
                   <p className="hero-lead trainer-thought-lead">
                     Каждая тренировка начинается с первого шага. Помоги человеку почувствовать себя сильнее, чем вчера.
@@ -951,7 +999,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     disabled={isBusy}
                     onClick={() => void loadHomeData()}
                   >
-                    ↻
+                    <RefreshIcon />
                   </button>
                 </div>
               </div>
@@ -1179,8 +1227,15 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     ) : null}
 
                     <div className="record-actions workout-card__actions">
-                      <a className="action-btn action-btn--secondary" href={getClientContactHref(item.client)} target="_blank" rel="noreferrer">
-                        Написать клиенту
+                      <a
+                        className="action-btn action-btn--secondary action-btn--icon"
+                        href={getClientContactHref(item.client)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Написать клиенту в Telegram"
+                        title="Написать клиенту в Telegram"
+                      >
+                        <TelegramIcon />
                       </a>
                       <button className="action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleConfirmBooking(item.id)}>
                         Подтвердить
@@ -1370,7 +1425,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                 disabled={isBusy}
                 onClick={() => void handleResyncAllTrainings()}
               >
-                📅
+                <CalendarIcon />
               </button>,
             )}
 
@@ -1381,7 +1436,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
               </div>
             ) : (
               <div className="record-list trainer-record-list">
-                {trainings.map((item) => (
+                {sortedTrainings.map((item) => (
                     <article className="record-card workout-card" key={item.trainingId}>
                       <div className="record-card-head workout-card__head">
                         <div>
@@ -1403,7 +1458,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                               disabled={isBusy}
                               onClick={() => void handleDownloadBookingCalendarFile(item.bookingId, item.startAt)}
                             >
-                              📆
+                              <CalendarIcon />
                             </button>
                           ) : null}
                         </div>
@@ -1435,8 +1490,15 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     ) : null}
 
                     <div className="record-actions workout-card__actions">
-                      <a className="action-btn action-btn--secondary" href={getClientContactHref(item.client)} target="_blank" rel="noreferrer">
-                        Написать клиенту
+                      <a
+                        className="action-btn action-btn--secondary action-btn--icon"
+                        href={getClientContactHref(item.client)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Написать клиенту в Telegram"
+                        title="Написать клиенту в Telegram"
+                      >
+                        <TelegramIcon />
                       </a>
                       {item.bookingStatus !== "CANCELLED" ? (
                         <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleCancelTraining(item.bookingId)}>
@@ -1493,7 +1555,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
               </div>
             ) : (
               <div className="record-list">
-                {trainings.map((item) => (
+                {sortedTrainings.map((item) => (
                   <article className="record-card" key={item.trainingId}>
                     <div className="record-card-head">
                       <div>
@@ -1740,7 +1802,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     disabled={isBusy}
                     onClick={() => void loadBlacklist()}
                   >
-                    ↻
+                    <RefreshIcon />
                   </button>
                 </div>
               </div>

@@ -16,8 +16,13 @@ interface StartHandlerDependencies {
   resolveRole(userId: number): UserRole;
 }
 
-const MINI_APP_CLIENT_BUTTON_LABEL = "Открыть mini app";
-const MINI_APP_TRAINER_BUTTON_LABEL = "Открыть тренерский экран";
+function getClientMiniAppLabel(config: BotRuntimeConfig) {
+  return config.miniAppLabel.trim() || "Открыть mini app";
+}
+
+function getTrainerMiniAppLabel(config: BotRuntimeConfig) {
+  return config.miniAppTrainerLabel.trim() || "Открыть тренерский экран";
+}
 
 function buildMiniAppInlineKeyboard(config: BotRuntimeConfig) {
   const miniAppUrl = config.miniAppUrl.trim();
@@ -29,10 +34,8 @@ function buildMiniAppInlineKeyboard(config: BotRuntimeConfig) {
 
   return {
     inline_keyboard: [
-      [{ text: MINI_APP_CLIENT_BUTTON_LABEL, web_app: { url: miniAppUrl } }],
-      ...(trainerMiniAppUrl
-        ? [[{ text: MINI_APP_TRAINER_BUTTON_LABEL, web_app: { url: trainerMiniAppUrl } }]]
-        : []),
+      [{ text: getClientMiniAppLabel(config), web_app: { url: miniAppUrl } }],
+      ...(trainerMiniAppUrl ? [[{ text: getTrainerMiniAppLabel(config), web_app: { url: trainerMiniAppUrl } }]] : []),
     ],
   };
 }
@@ -47,10 +50,8 @@ function buildMiniAppReplyKeyboard(config: BotRuntimeConfig) {
 
   return {
     keyboard: [
-      [{ text: MINI_APP_CLIENT_BUTTON_LABEL, web_app: { url: miniAppUrl } }],
-      ...(trainerMiniAppUrl
-        ? [[{ text: MINI_APP_TRAINER_BUTTON_LABEL, web_app: { url: trainerMiniAppUrl } }]]
-        : []),
+      [{ text: getClientMiniAppLabel(config), web_app: { url: miniAppUrl } }],
+      ...(trainerMiniAppUrl ? [[{ text: getTrainerMiniAppLabel(config), web_app: { url: trainerMiniAppUrl } }]] : []),
     ],
     resize_keyboard: true,
     is_persistent: true,
@@ -66,14 +67,14 @@ function buildClientWelcomeMessage(config: BotRuntimeConfig, fullName?: string |
     welcomeText: [
       greeting,
       "",
-      "Это бот клуба ТвойБокс.",
-      "ТвойБокс - твой путь к силе и уверенности.",
+      "Это бот клуба Твой Бокс.",
+      "Твой Бокс — твой путь к силе и уверенности.",
       "",
       "Здесь можно записаться на индивидуальные тренировки к тренеру Ростиславу, посмотреть свои записи и быстро связаться с тренером по удобному времени.",
     ].join("\n"),
     actionText: miniAppInlineKeyboard
-      ? "Нажми кнопку mini app ниже, чтобы открыть web-интерфейс, или Старт, чтобы остаться в сценарии бота."
-      : "Нажми кнопку Старт ниже, чтобы открыть меню.",
+      ? "Нажмите кнопку mini app ниже, чтобы открыть web-интерфейс, или кнопку «Старт», чтобы остаться в сценарии бота."
+      : "Нажмите кнопку «Старт» ниже, чтобы открыть меню.",
     inlineKeyboard: miniAppInlineKeyboard ?? new InlineKeyboard().text("Старт", "screen:client-main"),
     replyKeyboard: miniAppReplyKeyboard ?? new Keyboard().text("Старт").resized().persistent(),
   };
@@ -85,8 +86,8 @@ function buildAdminStartPrompt(config: BotRuntimeConfig) {
 
   return {
     text: miniAppReplyKeyboard
-      ? "Тренерский режим. Можно открыть mini app кнопкой внизу чата или вернуться в меню бота по кнопке Старт."
-      : "Тренерский режим. Кнопка Старт внизу чата возвращает в главное меню.",
+      ? "Тренерский режим. Можно открыть mini app кнопкой внизу чата или вернуться в меню бота по кнопке «Старт»."
+      : "Тренерский режим. Кнопка «Старт» внизу чата возвращает в главное меню.",
     inlineKeyboard: miniAppInlineKeyboard,
     replyKeyboard: miniAppReplyKeyboard ?? new Keyboard().text("Старт").resized().persistent(),
   };
@@ -96,10 +97,7 @@ function buildStartMessage(role: UserRole, screenId: ScreenId) {
   if (role === "admin" && screenId === "admin-main") {
     return {
       text: "Выберите раздел ↓",
-      keyboard: new InlineKeyboard()
-        .text("Заявки", "screen:admin-requests")
-        .row()
-        .text("Панель админа", "screen:admin-settings"),
+      keyboard: new InlineKeyboard().text("Заявки", "screen:admin-requests").row().text("Панель админа", "screen:admin-settings"),
     };
   }
 
@@ -156,7 +154,7 @@ async function handleStart(
       });
 
       await context.reply(
-        "Не удалось проверить регистрацию. Проверь, что API и база запущены, и попробуй снова.",
+        "Не удалось проверить регистрацию. Проверьте, что API и база запущены, и попробуйте снова.",
       );
       return;
     }
@@ -229,7 +227,7 @@ export function registerStartHandler(bot: Bot<Context>, dependencies: StartHandl
 
     await context.reply("Открыть тренерский экран:", {
       reply_markup: {
-        inline_keyboard: [[{ text: MINI_APP_TRAINER_BUTTON_LABEL, web_app: { url: trainerMiniAppUrl } }]],
+        inline_keyboard: [[{ text: getTrainerMiniAppLabel(dependencies.config), web_app: { url: trainerMiniAppUrl } }]],
       },
     });
   });

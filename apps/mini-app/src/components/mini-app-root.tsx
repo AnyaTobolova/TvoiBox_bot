@@ -168,6 +168,34 @@ function formatDateOnly(dateIso: string): string {
   }).format(new Date(dateIso));
 }
 
+function sortClientRecords(items: ClientTrainingDto[]): ClientTrainingDto[] {
+  return [...items].sort((left, right) => left.startAt.localeCompare(right.startAt));
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
 function getClientStatusLabel(item: ClientTrainingDto): string {
   if (item.isAwaitingTrainerDecision) {
     return "ожидает подтверждения";
@@ -398,7 +426,7 @@ export function MiniAppRoot() {
 
     try {
       const response = await api.getClientTrainings();
-      setRecords(response.items);
+      setRecords(sortClientRecords(response.items));
       setRecordsLoaded(true);
     } finally {
       if (showLoader) {
@@ -1224,7 +1252,7 @@ export function MiniAppRoot() {
                   disabled={isBusy}
                   onClick={() => void loadRecords()}
                 >
-                  ↻
+                  <RefreshIcon />
                 </button>
               </div>
             </div>
@@ -1270,7 +1298,7 @@ export function MiniAppRoot() {
                             disabled={isBusy}
                             onClick={() => void handleDownloadCalendar(item.bookingId, item.startAt)}
                           >
-                            🗓
+                            <CalendarIcon />
                           </button>
                         ) : null}
                       </div>
