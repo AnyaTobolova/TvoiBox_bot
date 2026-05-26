@@ -463,6 +463,10 @@ export function MiniAppRoot() {
       void loadBookingContext();
     }
 
+    if (session?.needsProfileCompletion) {
+      return;
+    }
+
     if (!recordsLoaded) {
       void loadRecords(false);
     }
@@ -470,7 +474,7 @@ export function MiniAppRoot() {
     if (screen === "records") {
       void loadRecords();
     }
-  }, [authMode, screen, recordsLoaded]);
+  }, [authMode, screen, recordsLoaded, session?.needsProfileCompletion]);
 
   const openScreen = (nextScreen: ScreenId) => {
     startTransition(() => {
