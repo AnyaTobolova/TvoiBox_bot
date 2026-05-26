@@ -6,6 +6,8 @@ COMPOSE_FILE="deploy/compose.server.yml"
 BASE_ENV_FILE="${ROOT_DIR}/.env.server"
 OVERRIDE_ENV_FILE="${ROOT_DIR}/.env.server.test-bot.override"
 RUNTIME_ENV_FILE="${ROOT_DIR}/.env.server.test-bot.runtime"
+START_LOG_ATTEMPTS="${START_LOG_ATTEMPTS:-24}"
+START_LOG_DELAY_SECONDS="${START_LOG_DELAY_SECONDS:-5}"
 
 if [[ ! -f "${BASE_ENV_FILE}" ]]; then
   echo "Missing ${BASE_ENV_FILE}"
@@ -51,6 +53,32 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
   fi
 done < "${OVERRIDE_ENV_FILE}"
 
+wait_for_bot_start() {
+  local attempts="${1:-24}"
+  local delay_seconds="${2:-5}"
+  local logs_output=""
+
+  for ((attempt=1; attempt<=attempts; attempt++)); do
+    logs_output="$(
+      SERVER_ENV_FILE="../.env.server.test-bot.runtime" \
+      docker compose --env-file .env.server.test-bot.runtime -f "${COMPOSE_FILE}" logs --since 5m bot 2>&1 || true
+    )"
+
+    if grep -Fq "Telegram bot token validated" <<<"${logs_output}" && grep -Fq "Bot polling started" <<<"${logs_output}"; then
+      echo "[test-bot] Polling bot started successfully."
+      return 0
+    fi
+
+    echo "[test-bot] Waiting for polling bot startup logs (${attempt}/${attempts})..."
+    sleep "${delay_seconds}"
+  done
+
+  echo "[test-bot] Polling bot did not confirm startup in logs."
+  SERVER_ENV_FILE="../.env.server.test-bot.runtime" \
+  docker compose --env-file .env.server.test-bot.runtime -f "${COMPOSE_FILE}" logs --since 10m bot || true
+  return 1
+}
+
 echo "[test-bot] Generated ${RUNTIME_ENV_FILE}"
 echo "[test-bot] Building bot image from current release..."
 docker compose --env-file .env.server.test-bot.runtime -f "${COMPOSE_FILE}" build bot
@@ -59,6 +87,8 @@ echo "[test-bot] Starting Telegram test bot in polling mode..."
 cd "${ROOT_DIR}"
 SERVER_ENV_FILE="../.env.server.test-bot.runtime" \
 docker compose --env-file .env.server.test-bot.runtime -f "${COMPOSE_FILE}" up -d bot
+
+wait_for_bot_start "${START_LOG_ATTEMPTS}" "${START_LOG_DELAY_SECONDS}"
 
 echo "[test-bot] Bot service started."
 echo "[test-bot] Check: docker compose --env-file .env.server.test-bot.runtime -f ${COMPOSE_FILE} ps bot"
