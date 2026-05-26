@@ -18,6 +18,33 @@ RELEASE_DIR="${RELEASES_DIR}/${RELEASE_NAME}"
 CURRENT_LINK="${DEPLOY_ROOT}/current"
 TEST_BOT_OVERRIDE_FILE=".env.server.test-bot.override"
 
+find_existing_test_bot_override() {
+  local candidate=""
+
+  if [[ -f "${BOOTSTRAP_ENV_ROOT}/${TEST_BOT_OVERRIDE_FILE}" ]]; then
+    echo "${BOOTSTRAP_ENV_ROOT}/${TEST_BOT_OVERRIDE_FILE}"
+    return 0
+  fi
+
+  if [[ -L "${CURRENT_LINK}" || -d "${CURRENT_LINK}" ]] && [[ -f "${CURRENT_LINK}/${TEST_BOT_OVERRIDE_FILE}" ]]; then
+    echo "${CURRENT_LINK}/${TEST_BOT_OVERRIDE_FILE}"
+    return 0
+  fi
+
+  candidate="$(
+    find "${RELEASES_DIR}" -mindepth 2 -maxdepth 2 -type f -name "${TEST_BOT_OVERRIDE_FILE}" -printf '%T@ %p\n' 2>/dev/null \
+      | sort -nr \
+      | awk 'NR==1 { print $2 }'
+  )"
+
+  if [[ -n "${candidate}" && -f "${candidate}" ]]; then
+    echo "${candidate}"
+    return 0
+  fi
+
+  return 1
+}
+
 retry_curl() {
   local url="$1"
   local label="$2"
@@ -52,10 +79,13 @@ if [[ ! -f "${SHARED_DIR}/.env.server" && -f "${BOOTSTRAP_ENV_ROOT}/.env.server"
   chmod 600 "${SHARED_DIR}/.env.server"
 fi
 
-if [[ ! -f "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}" && -f "${BOOTSTRAP_ENV_ROOT}/${TEST_BOT_OVERRIDE_FILE}" ]]; then
-  echo "[auto-deploy] Bootstrapping shared ${TEST_BOT_OVERRIDE_FILE} from legacy root"
-  cp "${BOOTSTRAP_ENV_ROOT}/${TEST_BOT_OVERRIDE_FILE}" "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}"
-  chmod 600 "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}"
+if [[ ! -f "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}" ]]; then
+  EXISTING_TEST_BOT_OVERRIDE="$(find_existing_test_bot_override || true)"
+  if [[ -n "${EXISTING_TEST_BOT_OVERRIDE}" ]]; then
+    echo "[auto-deploy] Bootstrapping shared ${TEST_BOT_OVERRIDE_FILE} from ${EXISTING_TEST_BOT_OVERRIDE}"
+    cp "${EXISTING_TEST_BOT_OVERRIDE}" "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}"
+    chmod 600 "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}"
+  fi
 fi
 
 if [[ ! -f "${SHARED_DIR}/.secrets/google-service-account.json" && -f "${BOOTSTRAP_SECRETS_ROOT}/.secrets/google-service-account.json" ]]; then
