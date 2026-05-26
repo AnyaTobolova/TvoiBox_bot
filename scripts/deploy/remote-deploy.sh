@@ -9,11 +9,13 @@ BOOTSTRAP_LOGS_ROOT="${BOOTSTRAP_LOGS_ROOT:-${LEGACY_ROOT}}"
 RELEASE_NAME="${RELEASE_NAME:?RELEASE_NAME is required}"
 RELEASE_ARCHIVE="${RELEASE_ARCHIVE:?RELEASE_ARCHIVE is required}"
 KEEP_RELEASES="${KEEP_RELEASES:-5}"
+RESTART_TEST_BOT="${RESTART_TEST_BOT:-false}"
 
 RELEASES_DIR="${DEPLOY_ROOT}/releases"
 SHARED_DIR="${DEPLOY_ROOT}/shared"
 RELEASE_DIR="${RELEASES_DIR}/${RELEASE_NAME}"
 CURRENT_LINK="${DEPLOY_ROOT}/current"
+TEST_BOT_OVERRIDE_FILE=".env.server.test-bot.override"
 
 retry_curl() {
   local url="$1"
@@ -49,6 +51,12 @@ if [[ ! -f "${SHARED_DIR}/.env.server" && -f "${BOOTSTRAP_ENV_ROOT}/.env.server"
   chmod 600 "${SHARED_DIR}/.env.server"
 fi
 
+if [[ ! -f "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}" && -f "${BOOTSTRAP_ENV_ROOT}/${TEST_BOT_OVERRIDE_FILE}" ]]; then
+  echo "[auto-deploy] Bootstrapping shared ${TEST_BOT_OVERRIDE_FILE} from legacy root"
+  cp "${BOOTSTRAP_ENV_ROOT}/${TEST_BOT_OVERRIDE_FILE}" "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}"
+  chmod 600 "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}"
+fi
+
 if [[ ! -f "${SHARED_DIR}/.secrets/google-service-account.json" && -f "${BOOTSTRAP_SECRETS_ROOT}/.secrets/google-service-account.json" ]]; then
   echo "[auto-deploy] Bootstrapping Google service account JSON from legacy root"
   cp "${BOOTSTRAP_SECRETS_ROOT}/.secrets/google-service-account.json" "${SHARED_DIR}/.secrets/google-service-account.json"
@@ -78,14 +86,28 @@ tar -xzf "${RELEASE_ARCHIVE}" -C "${RELEASE_DIR}"
 ln -sfn "${SHARED_DIR}/.env.server" "${RELEASE_DIR}/.env.server"
 ln -sfn "${SHARED_DIR}/.secrets" "${RELEASE_DIR}/.secrets"
 ln -sfn "${SHARED_DIR}/logs" "${RELEASE_DIR}/logs"
+if [[ -f "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}" ]]; then
+  ln -sfn "${SHARED_DIR}/${TEST_BOT_OVERRIDE_FILE}" "${RELEASE_DIR}/${TEST_BOT_OVERRIDE_FILE}"
+fi
 
 find "${RELEASE_DIR}/scripts/deploy" -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
 chmod +x "${RELEASE_DIR}/scripts/deploy/deploy-server.sh"
+chmod +x "${RELEASE_DIR}/scripts/deploy/start-dev-test-bot.sh"
+chmod +x "${RELEASE_DIR}/scripts/deploy/stop-dev-test-bot.sh"
 
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
 
 cd "${CURRENT_LINK}"
 bash scripts/deploy/deploy-server.sh
+
+if [[ "${RESTART_TEST_BOT}" == "true" ]]; then
+  if [[ -f "${TEST_BOT_OVERRIDE_FILE}" ]]; then
+    echo "[auto-deploy] Restarting Telegram test bot from current release"
+    bash scripts/deploy/start-dev-test-bot.sh
+  else
+    echo "[auto-deploy] Skipping Telegram test bot restart: ${TEST_BOT_OVERRIDE_FILE} is not configured"
+  fi
+fi
 
 API_PORT_VALUE="$(grep -E '^API_PORT=' .env.server | head -n 1 | cut -d '=' -f 2- || true)"
 retry_curl "http://127.0.0.1:${API_PORT_VALUE:-3300}/health" "API health"

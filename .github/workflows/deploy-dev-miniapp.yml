@@ -28,6 +28,7 @@ jobs:
       RELEASE_ARCHIVE_NAME: tvoy-box-miniapp-dev-${{ github.sha }}.tar.gz
       KEEP_RELEASES: "5"
       DEPLOY_WITH_BOT: "false"
+      RESTART_TEST_BOT: "true"
       DEV_APP_URL: https://app.anyatobolova.ru/
       DEV_HEALTHCHECK_URL: https://app.anyatobolova.ru/mini-api/health
 
@@ -85,6 +86,7 @@ jobs:
             RELEASE_ARCHIVE='/tmp/${RELEASE_ARCHIVE_NAME}' \
             KEEP_RELEASES='${KEEP_RELEASES}' \
             DEPLOY_WITH_BOT='${DEPLOY_WITH_BOT}' \
+            RESTART_TEST_BOT='${RESTART_TEST_BOT}' \
             /bin/bash /tmp/remote-deploy.sh"
 
       - name: Verify dev contour from VPS

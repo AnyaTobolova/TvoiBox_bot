@@ -111,6 +111,11 @@ bash scripts/deploy/start-dev-test-bot.sh
 docker compose --env-file .env.server.test-bot.runtime -f deploy/compose.server.yml ps bot
 ```
 
+Важно:
+
+- после первого успешного запуска `.env.server.test-bot.override` теперь подхватывается в `shared` dev-контура;
+- следующие `push` в ветку `dev` могут автоматически пересобирать и перезапускать test bot из свежего release, если override уже настроен на VPS.
+
 ### Как остановить test bot
 
 ```bash

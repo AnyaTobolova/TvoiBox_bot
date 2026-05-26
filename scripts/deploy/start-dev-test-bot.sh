@@ -52,6 +52,8 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
 done < "${OVERRIDE_ENV_FILE}"
 
 echo "[test-bot] Generated ${RUNTIME_ENV_FILE}"
+echo "[test-bot] Building bot image from current release..."
+docker compose --env-file .env.server.test-bot.runtime -f "${COMPOSE_FILE}" build bot
 echo "[test-bot] Starting Telegram test bot in polling mode..."
 
 cd "${ROOT_DIR}"
