@@ -43,21 +43,8 @@ function buildMiniAppInlineKeyboard(config: BotRuntimeConfig) {
 }
 
 function buildMiniAppReplyKeyboard(config: BotRuntimeConfig) {
-  const miniAppUrl = config.miniAppUrl.trim();
-  const trainerMiniAppUrl = config.miniAppTrainerUrl.trim();
-
-  if (!miniAppUrl) {
-    return null;
-  }
-
-  return {
-    keyboard: [
-      [{ text: getClientMiniAppLabel(config), web_app: { url: miniAppUrl } }],
-      ...(trainerMiniAppUrl ? [[{ text: getTrainerMiniAppLabel(config), web_app: { url: trainerMiniAppUrl } }]] : []),
-    ],
-    resize_keyboard: true,
-    is_persistent: true,
-  };
+  void config;
+  return new Keyboard().text("Старт").resized().persistent();
 }
 
 function buildClientWelcomeMessage(config: BotRuntimeConfig, fullName?: string | null) {
@@ -75,10 +62,10 @@ function buildClientWelcomeMessage(config: BotRuntimeConfig, fullName?: string |
       "Здесь можно записаться на индивидуальные тренировки к тренеру Ростиславу, посмотреть свои записи и быстро связаться с тренером по удобному времени.",
     ].join("\n"),
     actionText: miniAppInlineKeyboard
-      ? "Нажмите кнопку mini app ниже, чтобы открыть web-интерфейс, или кнопку «Старт», чтобы остаться в сценарии бота."
+      ? "Нажмите кнопку ниже, чтобы открыть mini app, или кнопку «Старт», чтобы остаться в сценарии бота."
       : "Нажмите кнопку «Старт» ниже, чтобы открыть меню.",
     inlineKeyboard: miniAppInlineKeyboard ?? new InlineKeyboard().text("Старт", "screen:client-main"),
-    replyKeyboard: miniAppReplyKeyboard ?? new Keyboard().text("Старт").resized().persistent(),
+    replyKeyboard: miniAppReplyKeyboard,
   };
 }
 
@@ -87,11 +74,11 @@ function buildAdminStartPrompt(config: BotRuntimeConfig) {
   const miniAppReplyKeyboard = buildMiniAppReplyKeyboard(config);
 
   return {
-    text: miniAppReplyKeyboard
-      ? "Тренерский режим. Можно открыть mini app кнопкой внизу чата или вернуться в меню бота по кнопке «Старт»."
+    text: miniAppInlineKeyboard
+      ? "Тренерский режим. Быстрый вход в mini app — по кнопкам в сообщении ниже. Кнопка «Старт» возвращает в меню бота."
       : "Тренерский режим. Кнопка «Старт» внизу чата возвращает в главное меню.",
     inlineKeyboard: miniAppInlineKeyboard,
-    replyKeyboard: miniAppReplyKeyboard ?? new Keyboard().text("Старт").resized().persistent(),
+    replyKeyboard: miniAppReplyKeyboard,
   };
 }
 

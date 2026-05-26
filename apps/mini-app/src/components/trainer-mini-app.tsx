@@ -258,7 +258,7 @@ function RefreshIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2.4"
+        strokeWidth="3.2"
       />
     </svg>
   );
@@ -282,8 +282,8 @@ function ArrowLeftIcon() {
 function CalendarIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
-      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2.8" />
+      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.8" />
     </svg>
   );
 }
@@ -297,9 +297,9 @@ function TelegramIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2.2"
+        strokeWidth="2.8"
       />
-      <path d="m8.5 14.4 9.1-7.4M10.1 19.6l1.8-4.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <path d="m8.5 14.4 9.1-7.4M10.1 19.6l1.8-4.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.8" />
     </svg>
   );
 }
@@ -442,6 +442,12 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
       void loadSlots();
     }
   }, [screen, slotRange.from, slotRange.to, settingsMeta.bookingHorizonDays, slotRangeWasCustomized]);
+
+  function openSlotsScreen() {
+    setSlotRangeWasCustomized(false);
+    setSlotRange(buildRangeWithDays(settingsMeta.bookingHorizonDays));
+    setScreen("slots");
+  }
 
   function renderCompactHeader(
     title: string,
@@ -1112,7 +1118,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     <span className="badge">{slotGroups.length} дней</span>
                     <strong>Слоты</strong>
                     <p>Открывай и закрывай часы, управляй диапазонами и проверяй периоды ручного закрытия.</p>
-                    <button className="primary-button" onClick={() => setScreen("slots")}>
+                  <button className="primary-button" onClick={openSlotsScreen}>
                       Открыть слоты
                     </button>
                   </article>
@@ -1205,7 +1211,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         ) : null}
 
         {screen === "bookings" ? (
-          <section className="panel trainer-slots-panel">
+          <section className="panel trainer-bookings-panel">
             {renderCompactHeader("Заявки", "Здесь только неподтверждённые записи и активные переносы.", () => setScreen("home"), () => void loadBookings())}
 
             {visibleBookings.length === 0 ? (
@@ -1449,7 +1455,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         ) : null}
 
         {screen === "trainings" ? (
-          <section className="panel trainer-settings-panel">
+          <section className="panel trainer-trainings-panel">
             {renderCompactHeader(
               "Тренировки",
               "Все тренировки в выбранном диапазоне: подтверждённые, отменённые и перенесённые.",
@@ -1650,7 +1656,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         ) : null}
 
         {screen === "slots" ? (
-          <section className="panel">
+          <section className="panel trainer-slots-panel">
             {renderCompactHeader("Слоты", "Нажимай по часу, чтобы открыть или закрыть слот. Для диапазонов используй форму ниже.", () => setScreen("settings"), () => void loadSlots())}
 
             <div className="form-grid form-grid-split slot-range-grid">
@@ -1766,7 +1772,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         ) : null}
 
         {screen === "clients" ? (
-          <section className="panel">
+          <section className="panel trainer-settings-panel">
             {renderCompactHeader("Клиенты и чёрный список", "Ищи по имени, телефону или username и сразу управляй доступом к записи.", () => setScreen("settings"))}
 
             <div className="search-row">
@@ -1969,7 +1975,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                 <span className="badge">{slotGroups.length} дней</span>
                 <strong>Слоты</strong>
                 <p>Открывайте и закрывайте время, управляйте диапазонами и окнами.</p>
-                <button className="primary-button" onClick={() => setScreen("slots")}>
+                  <button className="primary-button" onClick={openSlotsScreen}>
                   Открыть слоты
                 </button>
               </article>

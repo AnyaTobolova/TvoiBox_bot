@@ -687,7 +687,7 @@ a {
 .record-card-head-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -1067,7 +1067,7 @@ a {
 
 .trainer-thought-card {
   min-width: 0;
-  padding: 8px 9px;
+  padding: 10px 11px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.74);
   border: 1px solid rgba(21, 21, 21, 0.06);
@@ -1080,16 +1080,16 @@ a {
 }
 
 .trainer-thought-card strong {
-  font-size: 11px;
-  line-height: 1.18;
-  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.08;
+  font-weight: 800;
 }
 
 .trainer-thought-card span {
   order: -1;
   color: rgba(24, 21, 21, 0.42);
-  font-size: 9px;
-  line-height: 1.3;
+  font-size: 11px;
+  line-height: 1.24;
 }
 
 .hero-card-compact {
@@ -1248,8 +1248,8 @@ a {
 .calendar-icon-button svg,
 .action-btn--icon svg,
 .action-btn--icon-tight svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: block;
   margin: auto;
 }
@@ -1607,14 +1607,62 @@ a {
 .trainer-record-list .record-meta,
 .trainer-no-slot-list .record-meta,
 .trainer-clients-list .record-meta {
-  margin-top: 0;
+  margin-top: -1px;
   font-size: 12px;
-  line-height: 1.24;
+  line-height: 1.18;
 }
 
 .trainer-record-list .workout-card__top,
 .trainer-no-slot-list .workout-card__top {
-  margin-bottom: 1px;
+  margin-bottom: 0;
+}
+
+.trainer-record-list .workout-card__status,
+.trainer-no-slot-list .workout-card__status {
+  margin: 1px 0 5px;
+}
+
+.trainer-settings-panel,
+.trainer-slots-panel,
+.trainer-bookings-panel,
+.trainer-trainings-panel {
+  padding: 14px;
+}
+
+.trainer-settings-panel .panel-title,
+.trainer-slots-panel .panel-title,
+.trainer-bookings-panel .panel-title,
+.trainer-trainings-panel .panel-title {
+  font-size: 18px;
+}
+
+.trainer-settings-panel .panel-text,
+.trainer-slots-panel .panel-text,
+.trainer-bookings-panel .panel-text,
+.trainer-trainings-panel .panel-text {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.trainer-settings-panel .field-label,
+.trainer-slots-panel .field-label {
+  font-size: 11px;
+}
+
+.trainer-settings-panel .field input,
+.trainer-settings-panel .field select,
+.trainer-settings-panel .field textarea,
+.trainer-slots-panel .field input,
+.trainer-slots-panel .field select {
+  min-height: 40px;
+  padding: 9px 11px;
+  font-size: 13px;
+}
+
+.trainer-settings-panel .chip-button {
+  min-height: 34px;
+  padding: 0 13px;
+  font-size: 12px;
 }
 
 .action-btn--secondary {
@@ -1804,6 +1852,14 @@ a {
     height: 30px;
     min-height: 30px;
     font-size: 14px;
+  }
+
+  .icon-button-compact svg,
+  .calendar-icon-button svg,
+  .action-btn--icon svg,
+  .action-btn--icon-tight svg {
+    width: 18px;
+    height: 18px;
   }
 
   .hero-title-brand,
@@ -2008,11 +2064,19 @@ a {
   }
 
   .calendar-icon-button {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    min-height: 28px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
     font-size: 0;
+  }
+
+  .action-btn--icon,
+  .action-btn--icon-tight {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
   }
 
   .loader-state-compact strong {
@@ -2325,23 +2389,27 @@ a {
   }
 
   .record-card-head-actions {
-    gap: 6px;
+    gap: 8px;
   }
 
   .trainer-settings-panel .panel-title,
-  .trainer-slots-panel .panel-title {
-    font-size: 16px;
+  .trainer-slots-panel .panel-title,
+  .trainer-bookings-panel .panel-title,
+  .trainer-trainings-panel .panel-title {
+    font-size: 15px;
   }
 
   .trainer-settings-panel .panel-text,
-  .trainer-slots-panel .panel-text {
-    font-size: 12px;
-    line-height: 1.38;
+  .trainer-slots-panel .panel-text,
+  .trainer-bookings-panel .panel-text,
+  .trainer-trainings-panel .panel-text {
+    font-size: 11px;
+    line-height: 1.34;
   }
 
   .trainer-settings-panel .field-label,
   .trainer-slots-panel .field-label {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .trainer-settings-panel .field input,
@@ -2349,14 +2417,34 @@ a {
   .trainer-settings-panel .field textarea,
   .trainer-slots-panel .field input,
   .trainer-slots-panel .field select {
-    min-height: 42px;
-    font-size: 13px;
-    padding: 10px 12px;
+    min-height: 38px;
+    font-size: 12px;
+    padding: 8px 10px;
   }
 
   .trainer-settings-panel .chip-button {
-    min-height: 36px;
-    padding: 0 14px;
-    font-size: 12px;
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+
+  .trainer-thought-card {
+    padding: 8px 9px;
+  }
+
+  .trainer-thought-card strong {
+    font-size: 14px;
+  }
+
+  .trainer-thought-card span {
+    font-size: 10px;
+  }
+
+  .trainer-record-list .record-meta,
+  .trainer-no-slot-list .record-meta,
+  .trainer-clients-list .record-meta {
+    margin-top: -1px;
+    font-size: 11px;
+    line-height: 1.14;
   }
 }

@@ -181,7 +181,7 @@ function RefreshIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2.4"
+        strokeWidth="3.2"
       />
     </svg>
   );
@@ -190,8 +190,8 @@ function RefreshIcon() {
 function CalendarIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
-      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2.8" />
+      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.8" />
     </svg>
   );
 }
@@ -287,6 +287,8 @@ function groupSlotsByDay(slots: AvailableSlot[]) {
 }
 
 export function MiniAppRoot() {
+  const allowTechnicalPreview =
+    typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
   const [authMode, setAuthMode] = useState<AuthMode>("boot");
   const [session, setSession] = useState<MiniAppMeResponse | null>(null);
   const [screen, setScreen] = useState<ScreenId>("home");
@@ -780,7 +782,11 @@ export function MiniAppRoot() {
             </span>
             <span className="brand-tagline">Твой путь к силе и уверенности</span>
           </div>
-          <p>{authMode === "error" ? "Открой mini app из Telegram, чтобы войти как клиент или тренер." : "Локально открываем интерфейс в безопасном режиме для просмотра и согласования экранов."}</p>
+          <p>
+            {authMode === "error"
+              ? "Не удалось связаться с mini app API. Обновите экран или откройте mini app ещё раз из Telegram."
+              : "Локально открываем интерфейс в безопасном режиме для просмотра и согласования экранов."}
+          </p>
 
           {message ? (
             <div className={`alert ${message.tone === "error" ? "alert-error" : "alert-info"}`}>
@@ -792,14 +798,21 @@ export function MiniAppRoot() {
           ) : null}
 
           <div className="dev-actions">
-            <button className="primary-button" disabled={isBusy} onClick={() => void handleDevQuickLogin()}>
-              Открыть клиентский экран
-            </button>
+            {allowTechnicalPreview ? (
+              <button className="primary-button" disabled={isBusy} onClick={() => void handleDevQuickLogin()}>
+                Открыть клиентский экран
+              </button>
+            ) : (
+              <button className="primary-button" disabled={isBusy} onClick={() => void bootstrap()}>
+                Повторить вход
+              </button>
+            )}
           </div>
 
-          <details className="debug-details">
-            <summary className="debug-summary">Технический вход для локальной проверки</summary>
-            <div className="dev-form form-grid">
+          {allowTechnicalPreview ? (
+            <details className="debug-details">
+              <summary className="debug-summary">Технический вход для локальной проверки</summary>
+              <div className="dev-form form-grid">
               <div className="field">
                 <label className="field-label" htmlFor="dev-telegram-id">
                   Telegram ID
@@ -853,8 +866,9 @@ export function MiniAppRoot() {
               <button className="secondary-button" disabled={isBusy} onClick={() => void handleManualDevLogin()}>
                 Войти по введённому Telegram ID
               </button>
-            </div>
-          </details>
+              </div>
+            </details>
+          ) : null}
         </section>
       </main>
     );
