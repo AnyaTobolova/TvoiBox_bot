@@ -116,6 +116,7 @@ docker compose --env-file .env.server.test-bot.runtime -f deploy/compose.server.
 - после первого успешного запуска `.env.server.test-bot.override` теперь подхватывается в `shared` dev-контура;
 - следующие `push` в ветку `dev` могут автоматически пересобирать и перезапускать test bot из свежего release, если override уже настроен на VPS.
 - успешным стартом test bot теперь считается не только `docker compose up -d bot`, но и появление в логах строк `Telegram bot token validated` и `Bot polling started`.
+- на текущем этапе `.env.server.test-bot.override` уже считается обязательной частью dev-контура: если его нет, `Deploy Dev Mini App` должен падать, а не тихо пропускать ветку `test bot restart`.
 
 ### Как остановить test bot
 

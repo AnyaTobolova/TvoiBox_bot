@@ -10,6 +10,7 @@ RELEASE_NAME="${RELEASE_NAME:?RELEASE_NAME is required}"
 RELEASE_ARCHIVE="${RELEASE_ARCHIVE:?RELEASE_ARCHIVE is required}"
 KEEP_RELEASES="${KEEP_RELEASES:-5}"
 RESTART_TEST_BOT="${RESTART_TEST_BOT:-false}"
+REQUIRE_TEST_BOT_OVERRIDE="${REQUIRE_TEST_BOT_OVERRIDE:-false}"
 
 RELEASES_DIR="${DEPLOY_ROOT}/releases"
 SHARED_DIR="${DEPLOY_ROOT}/shared"
@@ -104,6 +105,9 @@ if [[ "${RESTART_TEST_BOT}" == "true" ]]; then
   if [[ -f "${TEST_BOT_OVERRIDE_FILE}" ]]; then
     echo "[auto-deploy] Restarting Telegram test bot from current release"
     bash scripts/deploy/start-dev-test-bot.sh
+  elif [[ "${REQUIRE_TEST_BOT_OVERRIDE}" == "true" ]]; then
+    echo "[auto-deploy] Telegram test bot override is required but missing: ${TEST_BOT_OVERRIDE_FILE}"
+    exit 1
   else
     echo "[auto-deploy] Skipping Telegram test bot restart: ${TEST_BOT_OVERRIDE_FILE} is not configured"
   fi
