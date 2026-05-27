@@ -510,7 +510,7 @@ export class SlotsService {
           id: explicit.id,
           startAt: explicit.startAt.toISOString(),
           endAt: explicit.endAt.toISOString(),
-          status: explicit.status === SlotStatus.OPEN ? SlotStatus.OPEN : SlotStatus.CLOSED,
+          status: explicit.status,
         });
         continue;
       }

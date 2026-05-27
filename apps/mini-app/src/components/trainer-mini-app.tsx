@@ -1688,6 +1688,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
             <div className="slot-legend">
               <span className="status-pill" data-tone="success">Открыт</span>
+              <span className="status-pill" data-tone="pending">Занят</span>
               <span className="status-pill" data-tone="danger">Закрыт</span>
             </div>
 

@@ -1331,10 +1331,15 @@ export function MiniAppRoot() {
             {records.length > 0 ? (
               <div className="record-list">
                 {records.map((item) => {
+                  const isPastConfirmedTraining = item.bookingStatus === "CONFIRMED"
+                    && item.trainingStatus === "SCHEDULED"
+                    && new Date(item.endAt).getTime() <= Date.now();
                   const primaryComment = item.trainerComment
                     ? `Комментарий: ${item.trainerComment}`
                     : item.clientComment
                       ? `Комментарий: ${item.clientComment}`
+                      : isPastConfirmedTraining && !item.canCancel && !item.canReschedule
+                        ? "Тренировка уже прошла, поэтому её нельзя перенести или отменить."
                       : null;
 
                   return (
