@@ -3,6 +3,7 @@ import { NoSlotRequestStatus } from "@prisma/client";
 
 import { AppConfigService } from "../../config/app-config.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { TelegramNotificationsService } from "../telegram-notifications/telegram-notifications.service";
 
 export interface CreateNoSlotRequestInput {
   telegramId: string;
@@ -62,6 +63,7 @@ export class NoSlotRequestsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly appConfigService: AppConfigService,
+    private readonly telegramNotificationsService: TelegramNotificationsService,
   ) {}
 
   async createRequest(input: CreateNoSlotRequestInput): Promise<CreateNoSlotRequestResult> {
@@ -106,7 +108,7 @@ export class NoSlotRequestsService {
       },
     });
 
-    return {
+    const result: CreateNoSlotRequestResult = {
       status: "created",
       request: {
         id: created.id,
@@ -127,6 +129,21 @@ export class NoSlotRequestsService {
         },
       },
     };
+
+    await this.telegramNotificationsService.notifyTrainerAboutNoSlotRequest({
+      requestId: result.request.id,
+      client: {
+        fullName: result.request.client.fullName,
+        telegramId: result.request.client.telegramId,
+        username: result.request.client.username,
+        phone: result.request.client.phone,
+      },
+      preferredDays: result.request.preferredDays,
+      preferredTime: result.request.preferredTime,
+      clientComment: result.request.clientComment,
+    });
+
+    return result;
   }
 
   async listForTrainer(input: ListNoSlotRequestsInput): Promise<ListNoSlotRequestsResult> {
@@ -196,10 +213,19 @@ export class NoSlotRequestsService {
       },
     });
 
-    return {
+    const result: UpdateNoSlotRequestResult = {
       status: "updated",
       request: this.toDto(updated),
     };
+
+    await this.telegramNotificationsService.notifyClientAboutNoSlotRequestUpdate({
+      requestId: result.request.id,
+      clientTelegramId: result.request.client.telegramId,
+      status: result.request.status,
+      trainerComment: result.request.trainerComment,
+    });
+
+    return result;
   }
 
   private ensureTrainerAccess(trainerTelegramId: string): void {

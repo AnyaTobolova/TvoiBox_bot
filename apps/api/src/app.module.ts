@@ -8,6 +8,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { MiniAppModule } from "./modules/mini-app/mini-app.module";
 import { NoSlotRequestsModule } from "./modules/no-slot-requests/no-slot-requests.module";
 import { SlotsModule } from "./modules/slots/slots.module";
+import { TelegramNotificationsModule } from "./modules/telegram-notifications/telegram-notifications.module";
 import { TrainerSettingsModule } from "./modules/trainer-settings/trainer-settings.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
@@ -21,6 +22,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     BookingsModule,
     NoSlotRequestsModule,
     GoogleCalendarModule,
+    TelegramNotificationsModule,
     TrainerSettingsModule,
   ],
   providers: [AppConfigService],

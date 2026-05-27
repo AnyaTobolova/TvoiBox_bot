@@ -10,6 +10,7 @@ import { BookingStatus, Prisma, SlotStatus, SyncOperation, SyncStatus, TrainingS
 import { AppConfigService } from "../../config/app-config.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GoogleCalendarService } from "../google-calendar/google-calendar.service";
+import { TelegramNotificationsService } from "../telegram-notifications/telegram-notifications.service";
 import { VIRTUAL_SLOT_PREFIX } from "../slots/slots.service";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -282,6 +283,7 @@ export class BookingsService {
     private readonly prismaService: PrismaService,
     private readonly appConfigService: AppConfigService,
     private readonly googleCalendarService: GoogleCalendarService,
+    private readonly telegramNotificationsService: TelegramNotificationsService,
   ) {}
 
   async createBookingRequest(input: CreateBookingRequestInput): Promise<BookingRequestResult> {
@@ -299,7 +301,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result = await this.prismaService.$transaction(async (transaction) => {
       const client = await transaction.client.findUnique({
         where: { telegramId },
       });
@@ -375,6 +377,30 @@ export class BookingsService {
         },
       };
     });
+
+    const bookingDetails = await this.prismaService.booking.findUnique({
+      where: { id: result.booking.id },
+      include: {
+        client: true,
+        slot: true,
+      },
+    });
+
+    if (bookingDetails) {
+      await this.telegramNotificationsService.notifyTrainerAboutBookingRequest({
+        bookingId: bookingDetails.id,
+        client: {
+          fullName: bookingDetails.client.fullName,
+          telegramId: bookingDetails.client.telegramId,
+          username: bookingDetails.client.username,
+          phone: bookingDetails.client.phone,
+        },
+        startAt: bookingDetails.slot.startAt.toISOString(),
+        clientComment,
+      });
+    }
+
+    return result;
   }
 
   async getPendingBookings(input: GetPendingBookingsInput): Promise<PendingBookingsResult> {
@@ -433,7 +459,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
       const booking = await transaction.booking.findUnique({
@@ -450,6 +476,8 @@ export class BookingsService {
 
       return this.toPendingBookingDto(booking);
     });
+
+    return result;
   }
 
   async archiveBookingByTrainer(input: ArchiveBookingByTrainerInput): Promise<BookingActionResult> {
@@ -462,7 +490,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
       const booking = await transaction.booking.findUnique({
@@ -502,6 +530,8 @@ export class BookingsService {
         booking: this.toPendingBookingDto(booking),
       };
     });
+
+    return result;
   }
 
   async getClientTrainings(input: GetClientTrainingsInput): Promise<ClientTrainingsResult> {
@@ -512,7 +542,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: ClientTrainingsResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
       const client = await transaction.client.findUnique({
@@ -609,6 +639,8 @@ export class BookingsService {
         items,
       };
     });
+
+    return result;
   }
 
   async getTrainerTrainings(input: GetTrainerTrainingsInput): Promise<TrainerTrainingsResult> {
@@ -626,7 +658,7 @@ export class BookingsService {
       throw new BadRequestException("Range is too large");
     }
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: TrainerTrainingsResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
         const bookings = await transaction.booking.findMany({
@@ -690,6 +722,8 @@ export class BookingsService {
           }),
       };
     });
+
+    return result;
   }
 
   async archiveTrainingByClient(input: ClientArchiveTrainingInput): Promise<BookingActionResult> {
@@ -704,7 +738,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
       const booking = await transaction.booking.findFirst({
@@ -750,6 +784,8 @@ export class BookingsService {
         booking: this.toPendingBookingDto(booking),
       };
     });
+
+    return result;
   }
 
   async cancelTrainingByClient(input: ClientCancelTrainingInput): Promise<BookingActionResult> {
@@ -789,7 +825,7 @@ export class BookingsService {
     }
 
     if (booking.status === BookingStatus.PENDING) {
-      return this.prismaService.$transaction(async (transaction) => {
+      const result = await this.prismaService.$transaction(async (transaction) => {
         await this.releaseExpiredPendingBookings(transaction, now);
         const freshBooking = await transaction.booking.findUnique({
           where: { id: bookingId },
@@ -823,13 +859,17 @@ export class BookingsService {
           booking: this.toPendingBookingDto(updatedBooking),
         };
       });
+
+      await this.notifyTrainerClientCancellation(result.booking);
+
+      return result;
     }
 
     const hasTrainerProposal = booking.status === BookingStatus.RESCHEDULED
       && this.extractProposedStartAtFromTrainerComment(booking.trainerComment) !== null;
 
     if (booking.status === BookingStatus.RESCHEDULED && booking.training && !hasTrainerProposal) {
-      return this.prismaService.$transaction(async (transaction) => {
+      const result = await this.prismaService.$transaction(async (transaction) => {
         const freshBooking = await transaction.booking.findUnique({
           where: { id: bookingId },
           include: {
@@ -895,6 +935,10 @@ export class BookingsService {
           booking: this.toPendingBookingDto(updatedBooking),
         };
       });
+
+      await this.notifyTrainerClientCancellation(result.booking);
+
+      return result;
     }
 
     const confirmedBooking = await this.prismaService.$transaction(async (transaction) => {
@@ -927,7 +971,7 @@ export class BookingsService {
       }
     }
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result = await this.prismaService.$transaction(async (transaction) => {
       const freshBooking = await this.getConfirmedBookingForClientOrThrow(transaction, bookingId, telegramId);
       const updatedBooking = await transaction.booking.update({
         where: { id: freshBooking.id },
@@ -981,6 +1025,10 @@ export class BookingsService {
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyTrainerClientCancellation(result.booking);
+
+    return result;
   }
 
   async getClientTrainingCalendarFile(telegramId: string, bookingId: string): Promise<ClientTrainingCalendarFileResult> {
@@ -1103,7 +1151,7 @@ export class BookingsService {
     }
 
     const now = new Date();
-    return this.prismaService.$transaction(async (transaction) => {
+    const result = await this.prismaService.$transaction(async (transaction) => {
       const freshBooking = await this.getConfirmedBookingForClientOrThrow(transaction, bookingId, telegramId);
       const freshTargetSlot = await this.resolveSlotForBooking(transaction, targetSlotId);
       if (freshTargetSlot.id === freshBooking.slotId) {
@@ -1161,6 +1209,10 @@ export class BookingsService {
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyTrainerClientRescheduleRequest(result.booking);
+
+    return result;
   }
 
   async confirmBooking(input: ConfirmBookingInput): Promise<BookingActionResult> {
@@ -1244,7 +1296,7 @@ export class BookingsService {
       calendarSyncErrorMessage = (error as Error).message;
     }
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result = await this.prismaService.$transaction(async (transaction) => {
       if (booking.status === BookingStatus.PENDING) {
         const lockedBooking = await this.getPendingBookingOrThrow(transaction, booking.id);
         this.assertPendingBookingIsActive(lockedBooking, now);
@@ -1414,6 +1466,10 @@ export class BookingsService {
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyClientBookingConfirmed(result.booking);
+
+    return result;
   }
 
   async rejectBooking(input: RejectBookingInput): Promise<BookingActionResult> {
@@ -1432,7 +1488,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
       const booking = await this.getPendingBookingOrThrow(transaction, bookingId);
@@ -1454,10 +1510,14 @@ export class BookingsService {
       await this.releaseHeldSlot(transaction, booking.slotId);
 
       return {
-        status: "rejected",
+        status: "rejected" as const,
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyClientBookingRejected(result.booking);
+
+    return result;
   }
 
   async proposeBookingTime(input: ProposeBookingTimeInput): Promise<BookingActionResult> {
@@ -1487,7 +1547,7 @@ export class BookingsService {
       trainerComment,
     ].join("\n");
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
 
       const booking = await this.getPendingBookingOrThrow(transaction, bookingId);
@@ -1508,10 +1568,14 @@ export class BookingsService {
       await this.releaseHeldSlot(transaction, booking.slotId);
 
       return {
-        status: "proposed",
+        status: "proposed" as const,
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyClientTrainerProposal(result.booking);
+
+    return result;
   }
 
   async cancelConfirmedTraining(input: CancelConfirmedTrainingInput): Promise<BookingActionResult> {
@@ -1556,7 +1620,7 @@ export class BookingsService {
       }
     }
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       await transaction.booking.update({
         where: { id: booking.id },
         data: {
@@ -1614,10 +1678,14 @@ export class BookingsService {
       }
 
       return {
-        status: "cancelled",
+        status: "cancelled" as const,
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyClientTrainerCancellation(result.booking);
+
+    return result;
   }
 
   async rescheduleConfirmedTraining(input: RescheduleConfirmedTrainingInput): Promise<BookingActionResult> {
@@ -1641,7 +1709,7 @@ export class BookingsService {
       throw new BadRequestException("newStartAt must be in the future");
     }
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       const booking = await this.getConfirmedBookingOrThrow(transaction, bookingId);
 
       let targetSlot = await transaction.slot.findUnique({
@@ -1693,10 +1761,14 @@ export class BookingsService {
       }
 
       return {
-        status: "rescheduled",
+        status: "rescheduled" as const,
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyClientTrainerProposal(result.booking);
+
+    return result;
   }
 
   async acceptProposedBookingTime(input: ClientProposalDecisionInput): Promise<BookingActionResult> {
@@ -1758,7 +1830,7 @@ export class BookingsService {
       calendarSyncErrorMessage = (error as Error).message;
     }
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result = await this.prismaService.$transaction(async (transaction) => {
       const freshBooking = await this.getRescheduledBookingForClientOrThrow(transaction, bookingId, telegramId);
 
       let targetSlot = await transaction.slot.findUnique({
@@ -1894,6 +1966,10 @@ export class BookingsService {
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyTrainerClientProposalDecision(result.booking, true);
+
+    return result;
   }
 
   async declineProposedBookingTime(input: ClientProposalDecisionInput): Promise<BookingActionResult> {
@@ -1911,7 +1987,7 @@ export class BookingsService {
 
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transaction) => {
+    const result: BookingActionResult = await this.prismaService.$transaction(async (transaction) => {
       const booking = await this.getRescheduledBookingForClientOrThrow(transaction, bookingId, telegramId);
 
       const trainerComment = decisionNote
@@ -1937,10 +2013,14 @@ export class BookingsService {
       });
 
       return {
-        status: booking.training ? "confirmed" : "rejected",
+        status: (booking.training ? "confirmed" : "rejected") as "confirmed" | "rejected",
         booking: this.toPendingBookingDto(updatedBooking),
       };
     });
+
+    await this.notifyTrainerClientProposalDecision(result.booking, false, decisionNote);
+
+    return result;
   }
 
   async forceCloseBooking(input: ForceCloseBookingInput): Promise<BookingActionResult> {
@@ -2601,6 +2681,87 @@ export class BookingsService {
         status: booking.slot.status,
       },
     };
+  }
+
+  private async notifyClientBookingConfirmed(booking: PendingBookingDto) {
+    await this.telegramNotificationsService.notifyClientAboutBookingConfirmed({
+      bookingId: booking.id,
+      clientTelegramId: booking.client.telegramId,
+      startAt: booking.slot.startAt,
+    });
+  }
+
+  private async notifyClientBookingRejected(booking: PendingBookingDto) {
+    await this.telegramNotificationsService.notifyClientAboutBookingRejected({
+      bookingId: booking.id,
+      clientTelegramId: booking.client.telegramId,
+      startAt: booking.slot.startAt,
+      trainerComment: booking.trainerComment,
+    });
+  }
+
+  private async notifyClientTrainerProposal(booking: PendingBookingDto) {
+    await this.telegramNotificationsService.notifyClientAboutTrainerProposal({
+      bookingId: booking.id,
+      clientTelegramId: booking.client.telegramId,
+      trainerComment: booking.trainerComment,
+    });
+  }
+
+  private async notifyClientTrainerCancellation(booking: PendingBookingDto) {
+    await this.telegramNotificationsService.notifyClientAboutTrainerCancellation({
+      bookingId: booking.id,
+      clientTelegramId: booking.client.telegramId,
+      startAt: booking.slot.startAt,
+      trainerComment: booking.trainerComment,
+    });
+  }
+
+  private async notifyTrainerClientCancellation(booking: PendingBookingDto) {
+    await this.telegramNotificationsService.notifyTrainerAboutClientCancellation({
+      bookingId: booking.id,
+      client: {
+        fullName: booking.client.fullName,
+        telegramId: booking.client.telegramId,
+        username: booking.client.username,
+        phone: booking.client.phone,
+      },
+      startAt: booking.slot.startAt,
+      clientComment: booking.clientComment,
+    });
+  }
+
+  private async notifyTrainerClientRescheduleRequest(booking: PendingBookingDto) {
+    await this.telegramNotificationsService.notifyTrainerAboutClientRescheduleRequest({
+      bookingId: booking.id,
+      client: {
+        fullName: booking.client.fullName,
+        telegramId: booking.client.telegramId,
+        username: booking.client.username,
+        phone: booking.client.phone,
+      },
+      startAt: booking.slot.startAt,
+      clientComment: booking.clientComment,
+    });
+  }
+
+  private async notifyTrainerClientProposalDecision(
+    booking: PendingBookingDto,
+    accepted: boolean,
+    decisionNote?: string,
+  ) {
+    await this.telegramNotificationsService.notifyTrainerAboutClientProposalDecision({
+      bookingId: booking.id,
+      client: {
+        fullName: booking.client.fullName,
+        telegramId: booking.client.telegramId,
+        username: booking.client.username,
+        phone: booking.client.phone,
+      },
+      startAt: booking.slot.startAt,
+      accepted,
+      decisionNote,
+    });
   }
 
   private getBookingStatusPriority(status: BookingStatus): number {
