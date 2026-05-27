@@ -7,6 +7,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Твой Бокс",
   description: "Mini App проекта записи на тренировки «Твой Бокс».",
+  icons: {
+    icon: [
+      { url: "/assets/logo-mark.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/assets/logo-mark.png", type: "image/png" },
+    ],
+    shortcut: ["/assets/logo-mark.png"],
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
