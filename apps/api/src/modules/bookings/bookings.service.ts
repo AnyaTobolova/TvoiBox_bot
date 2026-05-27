@@ -656,14 +656,21 @@ export class BookingsService {
 
     const now = new Date();
     const includeArchived = input.includeArchived === true;
-    const from = input.from?.trim() ? this.parseIsoDate("from", input.from) : new Date(now.getTime() - 180 * DAY_MS);
-    const to = input.to?.trim() ? this.parseIsoDate("to", input.to) : new Date(now.getTime() + 31 * DAY_MS);
+    const defaultFrom = includeArchived
+      ? new Date(now.getTime() - 180 * DAY_MS)
+      : new Date(now.getTime() - DAY_MS);
+    const defaultTo = includeArchived
+      ? new Date(now.getTime() + DAY_MS)
+      : new Date(now.getTime() + 31 * DAY_MS);
+    const from = input.from?.trim() ? this.parseIsoDate("from", input.from) : defaultFrom;
+    const to = input.to?.trim() ? this.parseIsoDate("to", input.to) : defaultTo;
+    const maxRangeDays = includeArchived ? 366 : 93;
 
     if (to.getTime() <= from.getTime()) {
       throw new BadRequestException("to must be greater than from");
     }
 
-    if (to.getTime() - from.getTime() > 93 * DAY_MS) {
+    if (to.getTime() - from.getTime() > maxRangeDays * DAY_MS) {
       throw new BadRequestException("Range is too large");
     }
 

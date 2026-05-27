@@ -175,7 +175,7 @@ function buildArchiveTrainingsRange(): { from: string; to: string } {
   const now = new Date();
   return {
     from: new Date(now.getTime() - 180 * DAY_MS).toISOString(),
-    to: new Date(now.getTime() + DAY_MS).toISOString(),
+    to: new Date(now.getTime() + 7 * DAY_MS).toISOString(),
   };
 }
 
