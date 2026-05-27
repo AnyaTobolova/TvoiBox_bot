@@ -2148,7 +2148,7 @@ export class BookingsService {
     }
     const training = booking.training;
 
-    let action: "create" | "update" | "cancel" | "noop" = "noop";
+    let action: "create" | "recreate" | "cancel" | "noop" = "noop";
     let externalEventId = training.calendarEventId ?? null;
     try {
       if (training.status === TrainingStatus.CANCELLED || booking.status === BookingStatus.CANCELLED) {
@@ -2161,36 +2161,28 @@ export class BookingsService {
         }
       } else if (training.calendarEventId) {
         try {
-          const syncResult = await this.googleCalendarService.updateEvent(training.calendarEventId, {
+          await this.googleCalendarService.cancelEvent({
             trainingId: training.id,
-            clientName: booking.client.fullName,
-            clientPhone: booking.client.phone,
-            clientUsername: booking.client.username,
-            clientTelegramId: booking.client.telegramId,
-            startAt: training.startAt,
-            endAt: training.endAt,
-            trainerComment: booking.trainerComment,
+            eventId: training.calendarEventId,
           });
-          externalEventId = syncResult.eventId;
-          action = "update";
         } catch (error) {
           if (!this.googleCalendarService.isGoogleNotFoundError(error)) {
             throw error;
           }
-
-          const syncResult = await this.googleCalendarService.createEvent({
-            trainingId: training.id,
-            clientName: booking.client.fullName,
-            clientPhone: booking.client.phone,
-            clientUsername: booking.client.username,
-            clientTelegramId: booking.client.telegramId,
-            startAt: training.startAt,
-            endAt: training.endAt,
-            trainerComment: booking.trainerComment,
-          });
-          externalEventId = syncResult.eventId;
-          action = "create";
         }
+
+        const syncResult = await this.googleCalendarService.createEvent({
+          trainingId: training.id,
+          clientName: booking.client.fullName,
+          clientPhone: booking.client.phone,
+          clientUsername: booking.client.username,
+          clientTelegramId: booking.client.telegramId,
+          startAt: training.startAt,
+          endAt: training.endAt,
+          trainerComment: booking.trainerComment,
+        });
+        externalEventId = syncResult.eventId;
+        action = "recreate";
       } else {
         const syncResult = await this.googleCalendarService.createEvent({
           trainingId: training.id,

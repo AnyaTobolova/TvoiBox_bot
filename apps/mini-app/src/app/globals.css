@@ -1348,6 +1348,20 @@ a {
   font-weight: 700;
 }
 
+.slot-day-compact .time-button[data-slot-status="open"] {
+  background: rgba(47, 143, 91, 0.78);
+  border-color: rgba(47, 143, 91, 0.94);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(28, 109, 65, 0.4);
+}
+
+.slot-day-compact .time-button[data-slot-status="closed"] {
+  background: rgba(198, 59, 52, 0.22);
+  border-color: rgba(198, 59, 52, 0.68);
+  color: #962d28;
+  box-shadow: inset 0 0 0 1px rgba(146, 34, 28, 0.12);
+}
+
 .slot-day-compact .time-button[data-active="true"] {
   background: rgba(230, 57, 70, 0.08);
   border-color: rgba(230, 57, 70, 0.25);
