@@ -55,6 +55,7 @@ interface ClientProposalDecisionBody {
 
 interface ClientTrainingsQuery {
   telegramId?: string;
+  includeArchived?: string;
 }
 
 interface ClientCancelTrainingBody {
@@ -219,6 +220,7 @@ export class BookingsController {
   async clientTrainings(@Query() query: ClientTrainingsQuery) {
     return this.bookingsService.getClientTrainings({
       telegramId: query.telegramId ?? "",
+      includeArchived: query.includeArchived === "true",
     });
   }
 

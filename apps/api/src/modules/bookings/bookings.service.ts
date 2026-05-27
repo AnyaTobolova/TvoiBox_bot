@@ -109,6 +109,7 @@ export interface ClientProposalDecisionInput {
 
 export interface GetClientTrainingsInput {
   telegramId: string;
+  includeArchived?: boolean;
 }
 
 export interface ClientCancelTrainingInput {
@@ -191,6 +192,7 @@ export interface GetTrainerTrainingsInput {
   trainerTelegramId: string;
   from?: string;
   to?: string;
+  includeArchived?: boolean;
 }
 
 export interface TrainerTrainingDto {
@@ -536,6 +538,7 @@ export class BookingsService {
 
   async getClientTrainings(input: GetClientTrainingsInput): Promise<ClientTrainingsResult> {
     const telegramId = input.telegramId.trim();
+    const includeArchived = input.includeArchived === true;
     if (!telegramId) {
       throw new BadRequestException("telegramId is required");
     }
@@ -544,6 +547,7 @@ export class BookingsService {
 
     const result: ClientTrainingsResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
+      await this.autoArchivePastTrainings(transaction, now);
 
       const client = await transaction.client.findUnique({
         where: { telegramId },
@@ -583,7 +587,7 @@ export class BookingsService {
       const archivedIds = new Set(archivedRows.map((row) => row.id));
 
       const items = bookings
-        .filter((booking) => !archivedIds.has(booking.id))
+        .filter((booking) => includeArchived ? archivedIds.has(booking.id) : !archivedIds.has(booking.id))
         .map((booking) => {
         const isFuture = booking.slot.startAt.getTime() > now.getTime();
         const trainingCancelled = booking.training?.status === TrainingStatus.CANCELLED;
@@ -613,6 +617,10 @@ export class BookingsService {
         };
         })
         .sort((left, right) => {
+          if (includeArchived) {
+            return new Date(right.startAt).getTime() - new Date(left.startAt).getTime();
+          }
+
           const leftIsFuture = new Date(left.endAt).getTime() > now.getTime();
           const rightIsFuture = new Date(right.endAt).getTime() > now.getTime();
 
@@ -647,8 +655,9 @@ export class BookingsService {
     this.ensureAdminAccess(input.trainerTelegramId);
 
     const now = new Date();
-    const from = input.from?.trim() ? this.parseIsoDate("from", input.from) : now;
-    const to = input.to?.trim() ? this.parseIsoDate("to", input.to) : new Date(from.getTime() + 31 * DAY_MS);
+    const includeArchived = input.includeArchived === true;
+    const from = input.from?.trim() ? this.parseIsoDate("from", input.from) : new Date(now.getTime() - 180 * DAY_MS);
+    const to = input.to?.trim() ? this.parseIsoDate("to", input.to) : new Date(now.getTime() + 31 * DAY_MS);
 
     if (to.getTime() <= from.getTime()) {
       throw new BadRequestException("to must be greater than from");
@@ -660,35 +669,41 @@ export class BookingsService {
 
     const result: TrainerTrainingsResult = await this.prismaService.$transaction(async (transaction) => {
       await this.releaseExpiredPendingBookings(transaction, now);
+      await this.autoArchivePastTrainings(transaction, now);
 
         const bookings = await transaction.booking.findMany({
           where: {
             status: {
               in: [BookingStatus.CONFIRMED, BookingStatus.RESCHEDULED, BookingStatus.CANCELLED],
             },
-            trainerArchivedAt: null,
+            trainerArchivedAt: includeArchived ? { not: null } : null,
             slot: {
               startAt: {
                 gte: from,
-              lt: to,
+                lt: to,
+              },
+              endAt: includeArchived
+                ? {
+                    lte: now,
+                  }
+                : undefined,
+            },
+            training: {
+              isNot: null,
             },
           },
-          training: {
-            isNot: null,
+          include: {
+            client: true,
+            slot: true,
+            training: true,
           },
-        },
-        include: {
-          client: true,
-          slot: true,
-          training: true,
-        },
-        orderBy: {
-          slot: {
-            startAt: "asc",
+          orderBy: {
+            slot: {
+              startAt: "asc",
+            },
           },
-        },
-        take: 200,
-      });
+          take: 200,
+        });
 
         return {
           status: "ok" as const,
@@ -719,7 +734,10 @@ export class BookingsService {
               canReschedule: isFuture,
               canResyncCalendar: Boolean(booking.training?.id),
             };
-          }),
+          })
+            .sort((left, right) => includeArchived
+              ? new Date(right.startAt).getTime() - new Date(left.startAt).getTime()
+              : new Date(left.startAt).getTime() - new Date(right.startAt).getTime()),
       };
     });
 
@@ -2268,6 +2286,42 @@ export class BookingsService {
         externalEventId: input.externalEventId ?? null,
         message: input.message,
         payload: input.payload,
+      },
+    });
+  }
+
+  private async autoArchivePastTrainings(
+    transaction: Prisma.TransactionClient,
+    now: Date,
+  ): Promise<void> {
+    const pastTrainingFilter = {
+      training: {
+        isNot: null,
+      },
+      slot: {
+        endAt: {
+          lte: now,
+        },
+      },
+    } satisfies Prisma.BookingWhereInput;
+
+    await transaction.booking.updateMany({
+      where: {
+        ...pastTrainingFilter,
+        clientArchivedAt: null,
+      },
+      data: {
+        clientArchivedAt: now,
+      },
+    });
+
+    await transaction.booking.updateMany({
+      where: {
+        ...pastTrainingFilter,
+        trainerArchivedAt: null,
+      },
+      data: {
+        trainerArchivedAt: now,
       },
     });
   }

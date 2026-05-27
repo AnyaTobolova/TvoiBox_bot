@@ -15,6 +15,7 @@ import { TrainerMiniApp } from "./trainer-mini-app";
 
 type ScreenId = "home" | "booking" | "records" | "profile" | "support";
 type AuthMode = "boot" | "dev" | "ready" | "error";
+type RecordsViewMode = "active" | "archive";
 
 interface DevLoginState {
   telegramId: string;
@@ -168,8 +169,10 @@ function formatDateOnly(dateIso: string): string {
   }).format(new Date(dateIso));
 }
 
-function sortClientRecords(items: ClientTrainingDto[]): ClientTrainingDto[] {
-  return [...items].sort((left, right) => left.startAt.localeCompare(right.startAt));
+function sortClientRecords(items: ClientTrainingDto[], view: RecordsViewMode): ClientTrainingDto[] {
+  return [...items].sort((left, right) => view === "archive"
+    ? right.startAt.localeCompare(left.startAt)
+    : left.startAt.localeCompare(right.startAt));
 }
 
 function RefreshIcon() {
@@ -346,6 +349,7 @@ export function MiniAppRoot() {
   const [bookingRules, setBookingRules] = useState<{ bookingHorizonDays: number; sameDayBookingCutoff: number } | null>(null);
   const [records, setRecords] = useState<ClientTrainingDto[]>([]);
   const [recordsLoaded, setRecordsLoaded] = useState(false);
+  const [recordsView, setRecordsView] = useState<RecordsViewMode>("active");
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [bookingComment, setBookingComment] = useState("");
   const [rescheduleBookingId, setRescheduleBookingId] = useState<string | null>(null);
@@ -457,14 +461,14 @@ export function MiniAppRoot() {
     }
   };
 
-  const loadRecords = async (showLoader = true) => {
+  const loadRecords = async (showLoader = true, view = recordsView) => {
     if (showLoader) {
       setIsBusy(true);
     }
 
     try {
-      const response = await api.getClientTrainings();
-      setRecords(sortClientRecords(response.items));
+      const response = await api.getClientTrainings({ includeArchived: view === "archive" });
+      setRecords(sortClientRecords(response.items, view));
       setRecordsLoaded(true);
     } finally {
       if (showLoader) {
@@ -504,13 +508,13 @@ export function MiniAppRoot() {
     }
 
     if (!recordsLoaded) {
-      void loadRecords(false);
+      void loadRecords(false, recordsView);
     }
 
     if (screen === "records") {
-      void loadRecords();
+      void loadRecords(true, recordsView);
     }
-  }, [authMode, screen, recordsLoaded, session?.needsProfileCompletion]);
+  }, [authMode, screen, recordsLoaded, recordsView, session?.needsProfileCompletion]);
 
   const openScreen = (nextScreen: ScreenId) => {
     startTransition(() => {
@@ -695,6 +699,11 @@ export function MiniAppRoot() {
     setSelectedSlotId("");
     setBookingComment("");
     openScreen("booking");
+  };
+
+  const handleOpenRecords = () => {
+    setRecordsView("active");
+    openScreen("records");
   };
 
   const handleAcceptProposal = async (bookingId: string) => {
@@ -1018,7 +1027,7 @@ export function MiniAppRoot() {
               <article className="action-card action-card-home">
                 <strong>Мои тренировки</strong>
                 <p>Следите за заявками, подтверждениями, переносами и отменами в одном месте.</p>
-                <button className="secondary-button action-card-button" disabled={isBusy} onClick={() => openScreen("records")}>
+                <button className="secondary-button action-card-button" disabled={isBusy} onClick={handleOpenRecords}>
                   Открыть список
                 </button>
               </article>
@@ -1296,9 +1305,29 @@ export function MiniAppRoot() {
                   ← Назад
                 </button>
                 <h2 className="panel-title">Мои записи</h2>
-                <p className="panel-text">Здесь собраны будущие записи и актуальные статусы по ним.</p>
+                <p className="panel-text">
+                  {recordsView === "archive"
+                    ? "Здесь хранятся прошедшие тренировки, которые автоматически ушли из активного списка."
+                    : "Здесь собраны актуальные тренировки и текущие статусы по ним."}
+                </p>
               </div>
               <div className="panel-header-actions">
+                <button
+                  className="chip-button"
+                  data-active={recordsView === "active" ? "true" : "false"}
+                  disabled={isBusy}
+                  onClick={() => setRecordsView("active")}
+                >
+                  Актуальные
+                </button>
+                <button
+                  className="chip-button"
+                  data-active={recordsView === "archive" ? "true" : "false"}
+                  disabled={isBusy}
+                  onClick={() => setRecordsView("archive")}
+                >
+                  Архив
+                </button>
                 <button
                   className="secondary-button secondary-button-compact icon-button-compact"
                   aria-label="Обновить записи"
@@ -1320,11 +1349,17 @@ export function MiniAppRoot() {
 
             {!isBusy && records.length === 0 ? (
               <div className="empty-state">
-                <strong>Пока нет будущих записей</strong>
-                <span>Когда будете готовы, можно сразу вернуться к выбору времени.</span>
-                <button className="primary-button booking-submit-button" onClick={handleOpenBooking}>
-                  Перейти к записи
-                </button>
+                <strong>{recordsView === "archive" ? "Архив пока пуст" : "Пока нет актуальных записей"}</strong>
+                <span>
+                  {recordsView === "archive"
+                    ? "Прошедшие тренировки появятся здесь автоматически."
+                    : "Когда будете готовы, можно сразу вернуться к выбору времени."}
+                </span>
+                {recordsView === "active" ? (
+                  <button className="primary-button booking-submit-button" onClick={handleOpenBooking}>
+                    Перейти к записи
+                  </button>
+                ) : null}
               </div>
             ) : null}
 
@@ -1368,37 +1403,39 @@ export function MiniAppRoot() {
 
                       {primaryComment ? <p className="workout-card__comment">{primaryComment}</p> : null}
 
-                      <div className="workout-card__actions">
-                        {item.canReschedule ? (
-                          <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => handleStartReschedule(item.bookingId)}>
-                            Перенести
-                          </button>
-                        ) : null}
-                        {item.canCancel ? (
-                          <button
-                            className={item.isAwaitingTrainerDecision ? "status-button action-btn action-btn--danger-soft" : "status-button action-btn action-btn--danger"}
-                            disabled={isBusy}
-                            onClick={() => void handleCancelTraining(item.bookingId)}
-                          >
-                            {item.isAwaitingTrainerDecision ? "Отменить заявку" : "Отменить"}
-                          </button>
-                        ) : null}
-                        {item.hasTrainerProposal ? (
-                          <>
-                            <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleAcceptProposal(item.bookingId)}>
-                              Принять перенос
+                      {recordsView === "active" ? (
+                        <div className="workout-card__actions">
+                          {item.canReschedule ? (
+                            <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => handleStartReschedule(item.bookingId)}>
+                              Перенести
                             </button>
-                            <button className="status-button action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleDeclineProposal(item.bookingId)}>
-                              Отклонить
+                          ) : null}
+                          {item.canCancel ? (
+                            <button
+                              className={item.isAwaitingTrainerDecision ? "status-button action-btn action-btn--danger-soft" : "status-button action-btn action-btn--danger"}
+                              disabled={isBusy}
+                              onClick={() => void handleCancelTraining(item.bookingId)}
+                            >
+                              {item.isAwaitingTrainerDecision ? "Отменить заявку" : "Отменить"}
                             </button>
-                          </>
-                        ) : null}
-                        {item.canDelete ? (
-                          <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleArchiveRecord(item.bookingId)}>
-                            Удалить из списка
-                          </button>
-                        ) : null}
-                      </div>
+                          ) : null}
+                          {item.hasTrainerProposal ? (
+                            <>
+                              <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleAcceptProposal(item.bookingId)}>
+                                Принять перенос
+                              </button>
+                              <button className="status-button action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleDeclineProposal(item.bookingId)}>
+                                Отклонить
+                              </button>
+                            </>
+                          ) : null}
+                          {item.canDelete ? (
+                            <button className="status-button action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleArchiveRecord(item.bookingId)}>
+                              Удалить из списка
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}

@@ -33,6 +33,7 @@ interface UpdateProfileBody {
 interface SlotsQuery {
   from?: string;
   to?: string;
+  includeArchived?: string;
 }
 
 interface RequestBookingBody {
@@ -233,9 +234,10 @@ export class MiniAppController {
 
   @UseGuards(MiniAppAuthGuard)
   @Get("client/trainings")
-  async getClientTrainings(@MiniAppSession() session: MiniAppSessionPayload) {
+  async getClientTrainings(@MiniAppSession() session: MiniAppSessionPayload, @Query() query: SlotsQuery) {
     return this.bookingsService.getClientTrainings({
       telegramId: session.telegramId,
+      includeArchived: query.includeArchived === "true",
     });
   }
 
@@ -413,6 +415,7 @@ export class MiniAppController {
       trainerTelegramId: session.telegramId,
       from: query.from,
       to: query.to,
+      includeArchived: query.includeArchived === "true",
     });
   }
 

@@ -294,12 +294,18 @@ export class MiniAppApi {
     return this.authRequest<TrainerSettingsResponse>("/mini-app/client/booking-rules", { method: "GET" });
   }
 
-  async getClientTrainings(): Promise<ClientTrainingsResponse> {
+  async getClientTrainings(params?: { includeArchived?: boolean }): Promise<ClientTrainingsResponse> {
     if (this.shouldUsePreview()) {
-      return this.preview.getClientTrainings(this.requireToken());
+      return this.preview.getClientTrainings(this.requireToken(), params);
     }
 
-    return this.authRequest<ClientTrainingsResponse>("/mini-app/client/trainings", { method: "GET" });
+    const search = new URLSearchParams();
+    if (params?.includeArchived) {
+      search.set("includeArchived", "true");
+    }
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+
+    return this.authRequest<ClientTrainingsResponse>(`/mini-app/client/trainings${suffix}`, { method: "GET" });
   }
 
   async downloadClientCalendarFile(bookingId: string): Promise<Blob> {
@@ -478,7 +484,7 @@ export class MiniAppApi {
     });
   }
 
-  async getTrainerTrainings(params?: { from?: string; to?: string }): Promise<TrainerTrainingsResponse> {
+  async getTrainerTrainings(params?: { from?: string; to?: string; includeArchived?: boolean }): Promise<TrainerTrainingsResponse> {
     if (this.shouldUsePreview()) {
       return this.preview.getTrainerTrainings(params);
     }
@@ -489,6 +495,9 @@ export class MiniAppApi {
     }
     if (params?.to) {
       search.set("to", params.to);
+    }
+    if (params?.includeArchived) {
+      search.set("includeArchived", "true");
     }
     const suffix = search.toString() ? `?${search.toString()}` : "";
 

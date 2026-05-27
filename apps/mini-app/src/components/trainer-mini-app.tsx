@@ -17,6 +17,7 @@ import {
 import { isLocalPreviewEnvironment } from "../lib/mini-app-preview";
 
 type TrainerScreenId = "home" | "bookings" | "trainings" | "slots" | "clients" | "settings" | "no-slot" | "profile" | "support";
+type TrainingsViewMode = "active" | "archive";
 
 interface TrainerMiniAppProps {
   api: MiniAppApi;
@@ -170,6 +171,14 @@ function buildRangeWithDays(days: number): SlotRangeState {
   };
 }
 
+function buildArchiveTrainingsRange(): { from: string; to: string } {
+  const now = new Date();
+  return {
+    from: new Date(now.getTime() - 180 * DAY_MS).toISOString(),
+    to: new Date(now.getTime() + DAY_MS).toISOString(),
+  };
+}
+
 function getBookingTone(status: PendingBookingDto["status"] | TrainerTrainingDto["bookingStatus"]): "pending" | "success" | "danger" | "muted" {
   switch (status) {
     case "PENDING":
@@ -247,8 +256,30 @@ function sortPendingBookings(items: PendingBookingDto[]): PendingBookingDto[] {
   return [...items].sort((left, right) => left.slot.startAt.localeCompare(right.slot.startAt));
 }
 
-function sortTrainerTrainings(items: TrainerTrainingDto[]): TrainerTrainingDto[] {
-  return [...items].sort((left, right) => left.startAt.localeCompare(right.startAt));
+function sortTrainerTrainings(items: TrainerTrainingDto[], view: TrainingsViewMode): TrainerTrainingDto[] {
+  return [...items].sort((left, right) => view === "archive"
+    ? right.startAt.localeCompare(left.startAt)
+    : left.startAt.localeCompare(right.startAt));
+}
+
+function buildTrainingsRequestParams(
+  view: TrainingsViewMode,
+  slotRange: SlotRangeState,
+): { from?: string; to?: string; includeArchived?: boolean } {
+  if (view === "archive") {
+    const archiveRange = buildArchiveTrainingsRange();
+    return {
+      from: archiveRange.from,
+      to: archiveRange.to,
+      includeArchived: true,
+    };
+  }
+
+  return {
+    from: toMoscowIsoDateTimeOrThrow(slotRange.from),
+    to: toMoscowIsoDateTimeOrThrow(slotRange.to),
+    includeArchived: false,
+  };
 }
 
 function RefreshIcon() {
@@ -342,6 +373,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
   const [message, setMessage] = useState<MessageState | null>(null);
   const [bookings, setBookings] = useState<PendingBookingDto[]>([]);
   const [trainings, setTrainings] = useState<TrainerTrainingDto[]>([]);
+  const [trainingsView, setTrainingsView] = useState<TrainingsViewMode>("active");
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [slotRange, setSlotRange] = useState<SlotRangeState>(defaultRange);
   const [slotRangeWasCustomized, setSlotRangeWasCustomized] = useState(false);
@@ -383,7 +415,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
   const visibleBookings = sortPendingBookings(bookings.filter((item) => item.status === "PENDING" || item.status === "RESCHEDULED"));
   const activeNoSlotRequests = noSlotRequests.filter((item) => item.status !== "ARCHIVED");
-  const sortedTrainings = sortTrainerTrainings(trainings);
+  const sortedTrainings = sortTrainerTrainings(trainings, trainingsView);
   const upcomingTrainings = sortedTrainings
     .filter((item) => new Date(item.startAt).getTime() >= Date.now())
     .sort((left, right) => left.startAt.localeCompare(right.startAt));
@@ -417,7 +449,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         void loadBookings();
         break;
       case "trainings":
-        void loadTrainings();
+        void loadTrainings(trainingsView);
         break;
       case "clients":
         void loadBlacklist();
@@ -431,7 +463,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
       default:
         break;
     }
-  }, [screen]);
+  }, [screen, trainingsView]);
 
   useEffect(() => {
     if (screen === "slots") {
@@ -510,13 +542,14 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
         api.getTrainerTrainings({
           from: toMoscowIsoDateTimeOrThrow(slotRange.from),
           to: toMoscowIsoDateTimeOrThrow(slotRange.to),
+          includeArchived: false,
         }),
         api.getTrainerNoSlotRequests(),
         api.getTrainerBlacklist(),
       ]);
 
       setBookings(sortPendingBookings(bookingsResponse.items));
-      setTrainings(sortTrainerTrainings(trainingsResponse.items));
+      setTrainings(sortTrainerTrainings(trainingsResponse.items, "active"));
       setNoSlotRequests(noSlotResponse.items);
       setBlacklist(blacklistResponse.items);
     });
@@ -533,13 +566,10 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
     });
   }
 
-  async function loadTrainings() {
+  async function loadTrainings(view = trainingsView) {
     await runTask(async () => {
-      const response = await api.getTrainerTrainings({
-        from: toMoscowIsoDateTimeOrThrow(slotRange.from),
-        to: toMoscowIsoDateTimeOrThrow(slotRange.to),
-      });
-      setTrainings(sortTrainerTrainings(response.items));
+      const response = await api.getTrainerTrainings(buildTrainingsRequestParams(view, slotRange));
+      setTrainings(sortTrainerTrainings(response.items, view));
     });
   }
 
@@ -1054,7 +1084,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                   <span className="badge">{trainings.length} в диапазоне</span>
                   <strong>Тренировки</strong>
                   <p>Подтвержденные, отмененные и перенесенные тренировки с быстрым переходом к клиенту и общим ресинком календаря.</p>
-                  <button className="primary-button" onClick={() => setScreen("trainings")}>
+                  <button className="primary-button" onClick={() => { setTrainingsView("active"); setScreen("trainings"); }}>
                     Открыть тренировки
                   </button>
                 </article>
@@ -1111,7 +1141,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     <span className="badge">{trainings.length} в диапазоне</span>
                     <strong>Тренировки</strong>
                     <p>Будущие подтверждённые тренировки, переносы, отмены и ручной ресинк календаря.</p>
-                    <button className="primary-button" onClick={() => setScreen("trainings")}>
+                    <button className="primary-button" onClick={() => { setTrainingsView("active"); setScreen("trainings"); }}>
                       Открыть тренировки
                     </button>
                   </article>
@@ -1460,24 +1490,51 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
           <section className="panel trainer-trainings-panel">
             {renderCompactHeader(
               "Тренировки",
-              "Все тренировки в выбранном диапазоне: подтверждённые, отменённые и перенесённые.",
+              trainingsView === "archive"
+                ? "Здесь хранятся прошедшие тренировки, которые автоматически ушли из активного списка."
+                : "Все актуальные тренировки в выбранном диапазоне: подтверждённые, отменённые и перенесённые.",
               () => setScreen("home"),
-              () => void loadTrainings(),
-              <button
-                className="secondary-button secondary-button-compact icon-button-compact"
-                aria-label="Пересинхронизировать календарь"
-                title="Пересинхронизировать календарь"
-                disabled={isBusy}
-                onClick={() => void handleResyncAllTrainings()}
-              >
-                <CalendarIcon />
-              </button>,
+              () => void loadTrainings(trainingsView),
+              trainingsView === "active" ? (
+                <button
+                  className="secondary-button secondary-button-compact icon-button-compact"
+                  aria-label="Пересинхронизировать календарь"
+                  title="Пересинхронизировать календарь"
+                  disabled={isBusy}
+                  onClick={() => void handleResyncAllTrainings()}
+                >
+                  <CalendarIcon />
+                </button>
+              ) : null,
             )}
+
+            <div className="chip-group compact-stack">
+              <button
+                className="chip-button"
+                data-active={trainingsView === "active" ? "true" : "false"}
+                disabled={isBusy}
+                onClick={() => setTrainingsView("active")}
+              >
+                Актуальные
+              </button>
+              <button
+                className="chip-button"
+                data-active={trainingsView === "archive" ? "true" : "false"}
+                disabled={isBusy}
+                onClick={() => setTrainingsView("archive")}
+              >
+                Архив
+              </button>
+            </div>
 
             {trainings.length === 0 ? (
               <div className="empty-state">
-                <strong>В этом диапазоне тренировок нет</strong>
-                <span>Попробуйте обновить список или проверить горизонт в настройках.</span>
+                <strong>{trainingsView === "archive" ? "Архив тренировок пока пуст" : "В этом диапазоне тренировок нет"}</strong>
+                <span>
+                  {trainingsView === "archive"
+                    ? "Прошедшие тренировки будут появляться здесь автоматически."
+                    : "Попробуйте обновить список или проверить горизонт в настройках."}
+                </span>
               </div>
             ) : (
               <div className="record-list trainer-record-list">
@@ -1521,7 +1578,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     {item.trainerComment ? <p className="workout-card__comment">Комментарий тренера: {item.trainerComment}</p> : null}
                     {item.client.note ? <p className="workout-card__comment">Заметка клиента: {item.client.note}</p> : null}
 
-                    {trainingProposalOpen[item.bookingId] ? (
+                    {trainingsView === "active" && trainingProposalOpen[item.bookingId] ? (
                       <div className="form-grid compact-stack">
                         <label className="field">
                           <span className="field-label">Комментарий к переносу</span>
@@ -1542,38 +1599,40 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                       </div>
                     ) : null}
 
-                    <div className="record-actions workout-card__actions">
-                      {item.bookingStatus !== "CANCELLED" ? (
-                        <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleCancelTraining(item.bookingId)}>
-                          Отменить
-                        </button>
-                      ) : null}
-                      {item.bookingStatus !== "CANCELLED" && trainingProposalOpen[item.bookingId] ? (
-                        <>
-                          <button className="action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleRescheduleTrainingFromCard(item.bookingId)}>
-                            Отправить перенос
+                    {trainingsView === "active" ? (
+                      <div className="record-actions workout-card__actions">
+                        {item.canCancel && item.bookingStatus !== "CANCELLED" ? (
+                          <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleCancelTraining(item.bookingId)}>
+                            Отменить
                           </button>
+                        ) : null}
+                        {item.canReschedule && item.bookingStatus !== "CANCELLED" && trainingProposalOpen[item.bookingId] ? (
+                          <>
+                            <button className="action-btn action-btn--secondary" disabled={isBusy} onClick={() => void handleRescheduleTrainingFromCard(item.bookingId)}>
+                              Отправить перенос
+                            </button>
+                            <button
+                              className="action-btn action-btn--secondary"
+                              disabled={isBusy}
+                              onClick={() => setTrainingProposalOpen((current) => ({ ...current, [item.bookingId]: false }))}
+                            >
+                              Скрыть
+                            </button>
+                          </>
+                        ) : item.canReschedule && item.bookingStatus !== "CANCELLED" ? (
                           <button
                             className="action-btn action-btn--secondary"
                             disabled={isBusy}
-                            onClick={() => setTrainingProposalOpen((current) => ({ ...current, [item.bookingId]: false }))}
+                            onClick={() => setTrainingProposalOpen((current) => ({ ...current, [item.bookingId]: true }))}
                           >
-                            Скрыть
+                            Предложить перенос
                           </button>
-                        </>
-                      ) : item.bookingStatus !== "CANCELLED" ? (
-                        <button
-                          className="action-btn action-btn--secondary"
-                          disabled={isBusy}
-                          onClick={() => setTrainingProposalOpen((current) => ({ ...current, [item.bookingId]: true }))}
-                        >
-                          Предложить перенос
+                        ) : null}
+                        <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleForceCloseTraining(item.bookingId)}>
+                          Удалить
                         </button>
-                      ) : null}
-                      <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleForceCloseTraining(item.bookingId)}>
-                        Удалить
-                      </button>
-                    </div>
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>

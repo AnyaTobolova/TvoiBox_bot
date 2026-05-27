@@ -536,6 +536,27 @@ function buildClientTraining(booking: PreviewBookingRecord): ClientTrainingDto {
   };
 }
 
+function autoArchivePastPreviewBookings(state: PreviewState): boolean {
+  const nowMs = Date.now();
+  let changed = false;
+
+  state.bookings = state.bookings.map((item) => {
+    const isPastTraining = item.trainingStatus !== null && new Date(item.endAt).getTime() <= nowMs;
+    if (!isPastTraining || (item.archivedByClient && item.archivedByTrainer)) {
+      return item;
+    }
+
+    changed = true;
+    return {
+      ...item,
+      archivedByClient: true,
+      archivedByTrainer: true,
+    };
+  });
+
+  return changed;
+}
+
 function buildNoSlotRequest(state: PreviewState, request: PreviewNoSlotRequestRecord): NoSlotRequestDto {
   return {
     id: request.id,
@@ -676,17 +697,21 @@ export class MiniAppPreviewRuntime {
     };
   }
 
-  getClientTrainings(token: string): { status: "ok"; items: ClientTrainingDto[] } {
+  getClientTrainings(token: string, params?: { includeArchived?: boolean }): { status: "ok"; items: ClientTrainingDto[] } {
     const session = getSessionFromToken(token);
     const state = readPreviewState();
+    const changed = autoArchivePastPreviewBookings(state);
+    if (changed) {
+      writePreviewState(state);
+    }
     const client = state.clients.find((item) => item.telegramId === session.telegramId);
     if (!client) {
       return { status: "ok", items: [] };
     }
 
     const items = state.bookings
-      .filter((item) => item.clientId === client.id && !item.archivedByClient)
-      .sort((left, right) => left.startAt.localeCompare(right.startAt))
+      .filter((item) => item.clientId === client.id && (params?.includeArchived ? item.archivedByClient : !item.archivedByClient))
+      .sort((left, right) => params?.includeArchived ? right.startAt.localeCompare(left.startAt) : left.startAt.localeCompare(right.startAt))
       .map(buildClientTraining);
 
     return { status: "ok", items };
@@ -960,13 +985,17 @@ export class MiniAppPreviewRuntime {
     return { status: "proposed" };
   }
 
-  getTrainerTrainings(params?: { from?: string; to?: string }): { status: "ok"; items: TrainerTrainingDto[] } {
+  getTrainerTrainings(params?: { from?: string; to?: string; includeArchived?: boolean }): { status: "ok"; items: TrainerTrainingDto[] } {
     const state = readPreviewState();
+    const changed = autoArchivePastPreviewBookings(state);
+    if (changed) {
+      writePreviewState(state);
+    }
     const from = params?.from ?? createMoscowIso("2026-05-22", "00:00");
     const to = params?.to ?? createMoscowIso("2026-06-05", "23:00");
     const items = state.bookings
-      .filter((item) => !item.archivedByTrainer && item.trainingStatus !== null && item.startAt >= from && item.startAt <= to)
-      .sort((left, right) => left.startAt.localeCompare(right.startAt))
+      .filter((item) => (params?.includeArchived ? item.archivedByTrainer : !item.archivedByTrainer) && item.trainingStatus !== null && item.startAt >= from && item.startAt <= to)
+      .sort((left, right) => params?.includeArchived ? right.startAt.localeCompare(left.startAt) : left.startAt.localeCompare(right.startAt))
       .map((item) => buildTrainerTraining(state, item));
 
     return { status: "ok", items };
