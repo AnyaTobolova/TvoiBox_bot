@@ -37,6 +37,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Decide whether test bot restart is required
+        id: test-bot
+        shell: bash
+        run: |
+          restart_test_bot="false"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            restart_test_bot="true"
+          else
+            BEFORE_SHA="${{ github.event.before }}"
+            CURRENT_SHA="${{ github.sha }}"
+
+            if [[ -n "${BEFORE_SHA}" && "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]; then
+              CHANGED_FILES="$(git diff --name-only "${BEFORE_SHA}" "${CURRENT_SHA}")"
+            else
+              CHANGED_FILES="$(git diff --name-only HEAD^ HEAD || true)"
+            fi
+
+            echo "[deploy] Changed files:"
+            printf '%s\n' "${CHANGED_FILES}"
+
+            if grep -Eq '^(apps/bot/|packages/|scripts/deploy/start-dev-test-bot\.sh|scripts/deploy/remote-deploy\.sh|deploy/compose\.server\.yml|pnpm-lock\.yaml|package\.json)$' <<<"${CHANGED_FILES}"; then
+              restart_test_bot="true"
+            fi
+          fi
+
+          echo "restart_test_bot=${restart_test_bot}" >> "${GITHUB_OUTPUT}"
+          echo "[deploy] restart_test_bot=${restart_test_bot}"
+
       - name: Create release archive
         shell: bash
         run: |
@@ -87,7 +116,7 @@ jobs:
             RELEASE_ARCHIVE='/tmp/${RELEASE_ARCHIVE_NAME}' \
             KEEP_RELEASES='${KEEP_RELEASES}' \
             DEPLOY_WITH_BOT='${DEPLOY_WITH_BOT}' \
-            RESTART_TEST_BOT='${RESTART_TEST_BOT}' \
+            RESTART_TEST_BOT='${{ steps.test-bot.outputs.restart_test_bot }}' \
             REQUIRE_TEST_BOT_OVERRIDE='${REQUIRE_TEST_BOT_OVERRIDE}' \
             /bin/bash /tmp/remote-deploy.sh"
 
