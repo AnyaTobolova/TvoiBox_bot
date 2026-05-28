@@ -1146,7 +1146,7 @@ a {
 .trainer-thought-card {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto minmax(22px, auto);
+  grid-template-rows: minmax(30px, auto) minmax(24px, auto);
   align-content: start;
   gap: 4px;
   padding: 10px 11px;
@@ -1164,6 +1164,7 @@ a {
 .trainer-thought-card strong {
   display: flex;
   align-items: flex-end;
+  align-self: end;
   font-size: 16px;
   line-height: 1.16;
   font-weight: 500;

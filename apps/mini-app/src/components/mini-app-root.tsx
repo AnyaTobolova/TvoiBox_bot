@@ -408,14 +408,6 @@ export function MiniAppRoot() {
       }
 
       const savedToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (savedToken && !devMode) {
-        try {
-          await hydrateSession(savedToken);
-          return;
-        } catch {
-          window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-        }
-      }
 
       const webApp = window.Telegram?.WebApp;
       if (webApp) {
@@ -428,6 +420,21 @@ export function MiniAppRoot() {
       }
 
       const initData = webApp?.initData?.trim();
+      if (initData) {
+        const createdSession = await api.createSession(initData);
+        await hydrateSession(createdSession.token);
+        return;
+      }
+
+      if (savedToken && !devMode) {
+        try {
+          await hydrateSession(savedToken);
+          return;
+        } catch {
+          window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        }
+      }
+
       if (!initData) {
         if (previewRole && canUsePreviewDevLogin && !forceManualDev) {
           window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
@@ -439,8 +446,6 @@ export function MiniAppRoot() {
         return;
       }
 
-      const createdSession = await api.createSession(initData);
-      await hydrateSession(createdSession.token);
     } catch (error) {
       const normalizedError = error as Error;
       setMessage({ tone: "error", text: normalizedError.message || "Не удалось инициализировать mini app." });
@@ -1107,15 +1112,15 @@ export function MiniAppRoot() {
 
         {screen === "support" ? (
           <section className="panel">
-            <div className="panel-header panel-header-compact">
-              <div>
+            <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
+              <div className="panel-header-row">
+                <button className="back-link back-link-inline" disabled={isBusy} onClick={goBack}>
+                  ← Назад
+                </button>
+              </div>
+              <div className="panel-header-copy panel-header-copy-wide">
                 <h2 className="panel-title">Помощь</h2>
                 <p className="panel-text">Коротко о записи и связи с тренером.</p>
-              </div>
-              <div className="panel-header-actions">
-                <button className="secondary-button secondary-button-compact" disabled={isBusy} onClick={goBack}>
-                  Назад
-                </button>
               </div>
             </div>
 
