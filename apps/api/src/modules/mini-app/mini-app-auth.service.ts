@@ -181,25 +181,38 @@ export class MiniAppAuthService {
       throw new UnauthorizedException("initData is too old");
     }
 
-    const entries = [...params.entries()]
-      .filter(([key]) => key !== "hash")
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, value]) => `${key}=${value}`);
-
-    const dataCheckString = entries.join("\n");
     const secretKey = createHmac("sha256", WEB_APP_DATA_KEY)
       .update(this.appConfigService.values.telegramBotToken)
       .digest();
-    const expectedHash = createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
-
     const providedBuffer = Buffer.from(hash, "hex");
-    const expectedBuffer = Buffer.from(expectedHash, "hex");
+    const expectedHashes = [
+      this.buildInitDataHash(params, secretKey, new Set(["hash"])),
+      this.buildInitDataHash(params, secretKey, new Set(["hash", "signature"])),
+    ];
 
-    if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+    const hasValidHash = expectedHashes.some((expectedHash) => {
+      const expectedBuffer = Buffer.from(expectedHash, "hex");
+      return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer);
+    });
+
+    if (!hasValidHash) {
       throw new UnauthorizedException("initData signature is invalid");
     }
 
     return params;
+  }
+
+  private buildInitDataHash(
+    params: URLSearchParams,
+    secretKey: Buffer,
+    excludedKeys: Set<string>,
+  ): string {
+    const entries = [...params.entries()]
+      .filter(([key]) => !excludedKeys.has(key))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}=${value}`);
+
+    return createHmac("sha256", secretKey).update(entries.join("\n")).digest("hex");
   }
 
   private parseUser(rawUser: string | null): ParsedTelegramUser {
