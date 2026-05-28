@@ -31,18 +31,13 @@ function buildClientMiniAppKeyboard(config: BotRuntimeConfig) {
 }
 
 function buildAdminMiniAppInlineKeyboard(config: BotRuntimeConfig) {
-  const clientMiniAppButton = buildClientMiniAppInlineKeyboard(config.miniAppUrl);
   const trainerMiniAppUrl = normalizeMiniAppUrl(config.miniAppTrainerUrl);
 
-  if (!clientMiniAppButton) {
+  if (!trainerMiniAppUrl) {
     return null;
   }
 
-  if (!trainerMiniAppUrl) {
-    return clientMiniAppButton;
-  }
-
-  return clientMiniAppButton.row().webApp(getTrainerMiniAppLabel(config), trainerMiniAppUrl);
+  return new InlineKeyboard().webApp(getTrainerMiniAppLabel(config), trainerMiniAppUrl);
 }
 
 function buildMiniAppReplyKeyboard(config: BotRuntimeConfig) {
