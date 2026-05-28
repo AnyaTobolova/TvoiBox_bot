@@ -1090,8 +1090,9 @@ export class BookingsService {
     const summary = this.escapeIcsText("Твой Бокс — тренировка");
     const trainerTelegramUrl = "https://t.me/RostPV";
     const descriptionParts = [
+      "Открыть Telegram тренера:",
+      trainerTelegramUrl,
       "Тренер: Ростислав",
-      `Связь с тренером: ${trainerTelegramUrl}`,
       booking.trainerComment ? `Комментарий тренера: ${booking.trainerComment}` : null,
       booking.clientComment ? `Комментарий клиента: ${booking.clientComment}` : null,
     ].filter(Boolean) as string[];
@@ -1105,6 +1106,7 @@ export class BookingsService {
         summary,
         description: descriptionParts.join("\n"),
         url: trainerTelegramUrl,
+        location: trainerTelegramUrl,
       }),
     };
   }
@@ -1148,6 +1150,8 @@ export class BookingsService {
     const normalizedUsername = booking.client.username?.trim().replace(/^@/, "") ?? "";
     const clientTelegramUrl = normalizedUsername ? `https://t.me/${normalizedUsername}` : null;
     const descriptionParts = [
+      clientTelegramUrl ? "Открыть Telegram клиента:" : null,
+      clientTelegramUrl,
       `Клиент: ${booking.client.fullName}`,
       booking.client.phone ? `Телефон: ${booking.client.phone}` : null,
       normalizedUsername ? `Username: @${normalizedUsername}` : null,
@@ -1165,6 +1169,7 @@ export class BookingsService {
         summary,
         description: descriptionParts.join("\n"),
         url: clientTelegramUrl,
+        location: clientTelegramUrl,
       }),
     };
   }
@@ -2380,6 +2385,7 @@ export class BookingsService {
     summary: string;
     description: string;
     url?: string | null;
+    location?: string | null;
   }): string {
     return [
       "BEGIN:VCALENDAR",
@@ -2393,6 +2399,7 @@ export class BookingsService {
       `DTSTART:${this.toIcsUtc(input.startAt)}`,
       `DTEND:${this.toIcsUtc(input.endAt)}`,
       `SUMMARY:${input.summary}`,
+      input.location ? `LOCATION:${this.escapeIcsText(input.location)}` : null,
       `DESCRIPTION:${this.escapeIcsText(input.description)}`,
       input.url ? `URL:${this.escapeIcsText(input.url)}` : null,
       "BEGIN:VALARM",
