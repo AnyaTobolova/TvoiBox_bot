@@ -11,6 +11,7 @@ import {
   SlotClosureInfo,
   getMiniAppApiBaseUrl,
 } from "../lib/mini-app-api";
+import { openCalendarFile } from "../lib/telegram-file";
 import { TrainerMiniApp } from "./trainer-mini-app";
 
 type ScreenId = "home" | "booking" | "records" | "profile" | "support";
@@ -761,17 +762,15 @@ export function MiniAppRoot() {
 
     try {
       const blob = await api.downloadClientCalendarFile(bookingId);
-      const url = URL.createObjectURL(blob);
       const date = new Date(startAt);
       const fileName = `tvoy-box-training-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}-${String(date.getHours()).padStart(2, "0")}-${String(date.getMinutes()).padStart(2, "0")}.ics`;
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setMessage({ tone: "success", text: "Файл календаря скачан. Внутри уже добавлены напоминания за 1 день и за 1 час." });
+      const openMode = openCalendarFile(blob, fileName);
+      setMessage({
+        tone: "success",
+        text: openMode === "opened"
+          ? "Файл календаря открыт. Внутри уже добавлены напоминания за 1 день и за 1 час."
+          : "Файл календаря скачан. Внутри уже добавлены напоминания за 1 день и за 1 час.",
+      });
     } catch (error) {
       const normalizedError = error as Error;
       setMessage({ tone: "error", text: normalizedError.message || "Не удалось скачать файл календаря." });
@@ -1300,44 +1299,46 @@ export function MiniAppRoot() {
         ) : null}
         {screen === "records" ? (
           <section className="panel">
-            <div className="panel-header panel-header-compact panel-header-slim">
-              <div>
+            <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
+              <div className="panel-header-row">
                 <button className="back-link back-link-inline" disabled={isBusy} onClick={goBack}>
                   ← Назад
                 </button>
+                <div className="panel-header-actions panel-header-actions-tight">
+                  <button
+                    className="chip-button chip-button-compact"
+                    data-active={recordsView === "active" ? "true" : "false"}
+                    disabled={isBusy}
+                    onClick={() => setRecordsView("active")}
+                  >
+                    Актуальные
+                  </button>
+                  <button
+                    className="chip-button chip-button-compact"
+                    data-active={recordsView === "archive" ? "true" : "false"}
+                    disabled={isBusy}
+                    onClick={() => setRecordsView("archive")}
+                  >
+                    Архив
+                  </button>
+                  <button
+                    className="secondary-button secondary-button-compact icon-button-compact"
+                    aria-label="Обновить записи"
+                    title="Обновить"
+                    disabled={isBusy}
+                    onClick={() => void loadRecords()}
+                  >
+                    <RefreshIcon />
+                  </button>
+                </div>
+              </div>
+              <div className="panel-header-copy panel-header-copy-wide">
                 <h2 className="panel-title">Мои записи</h2>
                 <p className="panel-text">
                   {recordsView === "archive"
                     ? "Здесь хранятся прошедшие тренировки, которые автоматически ушли из активного списка."
                     : "Здесь собраны актуальные тренировки и текущие статусы по ним."}
                 </p>
-              </div>
-              <div className="panel-header-actions">
-                <button
-                  className="chip-button chip-button-compact"
-                  data-active={recordsView === "active" ? "true" : "false"}
-                  disabled={isBusy}
-                  onClick={() => setRecordsView("active")}
-                >
-                  Актуальные
-                </button>
-                <button
-                  className="chip-button chip-button-compact"
-                  data-active={recordsView === "archive" ? "true" : "false"}
-                  disabled={isBusy}
-                  onClick={() => setRecordsView("archive")}
-                >
-                  Архив
-                </button>
-                <button
-                  className="secondary-button secondary-button-compact icon-button-compact"
-                  aria-label="Обновить записи"
-                  title="Обновить"
-                  disabled={isBusy}
-                  onClick={() => void loadRecords()}
-                >
-                  <RefreshIcon />
-                </button>
               </div>
             </div>
 

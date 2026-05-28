@@ -12,6 +12,7 @@ declare global {
         colorScheme?: "light" | "dark";
         setHeaderColor?: (color: string) => void;
         setBackgroundColor?: (color: string) => void;
+        openLink?: (url: string) => void;
       };
     };
   }

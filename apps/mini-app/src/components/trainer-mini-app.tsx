@@ -15,6 +15,7 @@ import {
   TrainerTrainingDto,
 } from "../lib/mini-app-api";
 import { isLocalPreviewEnvironment } from "../lib/mini-app-preview";
+import { openCalendarFile } from "../lib/telegram-file";
 
 type TrainerScreenId = "home" | "bookings" | "trainings" | "slots" | "clients" | "settings" | "no-slot" | "profile" | "support";
 type TrainingsViewMode = "active" | "archive";
@@ -351,6 +352,9 @@ function normalizeUiErrorMessage(error: Error): string {
     if (parsed.message?.includes("trainerComment is required")) {
       return "Для этого действия нужен комментарий тренера.";
     }
+    if (parsed.message?.includes("rateLimitExceeded") || parsed.message?.includes("Rate Limit Exceeded")) {
+      return "Google Calendar временно ограничил частые пересинхронизации. Подождите немного и попробуйте ещё раз.";
+    }
     return parsed.message || raw;
   } catch {
     if (raw.includes("Google OAuth token request failed")) {
@@ -361,6 +365,9 @@ function normalizeUiErrorMessage(error: Error): string {
     }
     if (raw.includes("Google Calendar HTTP 410")) {
       return "Событие уже удалено из Google Calendar. Локальная запись будет обновлена без ошибки.";
+    }
+    if (raw.includes("rateLimitExceeded") || raw.includes("Rate Limit Exceeded")) {
+      return "Google Calendar временно ограничил частые пересинхронизации. Подождите немного и попробуйте ещё раз.";
     }
     return raw;
   }
@@ -487,32 +494,20 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
     title: string,
     text: string,
     onBack: () => void,
-    onRefresh?: () => void,
-    extraAction?: ReactNode,
+    actions?: ReactNode,
   ) {
       return (
-        <div className="panel-header panel-header-compact panel-header-slim">
-          <div className="panel-header-copy panel-header-copy-wide">
+        <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
+          <div className="panel-header-row">
             <button className="back-link back-link-inline back-link-icon" disabled={isBusy} onClick={onBack}>
               <ArrowLeftIcon />
               <span>Назад</span>
             </button>
+            {actions ? <div className="panel-header-actions panel-header-actions-tight">{actions}</div> : null}
+          </div>
+          <div className="panel-header-copy panel-header-copy-wide">
             <h2 className="panel-title">{title}</h2>
             <p className="panel-text">{text}</p>
-          </div>
-          <div className="panel-header-actions">
-            {extraAction}
-            {onRefresh ? (
-              <button
-                className="secondary-button secondary-button-compact icon-button-compact"
-                aria-label={`Обновить раздел ${title}`}
-                title="Обновить"
-              disabled={isBusy}
-              onClick={onRefresh}
-            >
-              <RefreshIcon />
-              </button>
-            ) : null}
           </div>
         </div>
       );
@@ -711,15 +706,16 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
   async function handleDownloadBookingCalendarFile(bookingId: string, startAt: string) {
     await runTask(async () => {
       const blob = await api.downloadTrainerBookingCalendarFile(bookingId);
-      const url = window.URL.createObjectURL(blob);
       const date = new Date(startAt);
       const fileName = `tvoy-box-booking-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}-${String(date.getHours()).padStart(2, "0")}-${String(date.getMinutes()).padStart(2, "0")}.ics`;
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileName;
-      anchor.click();
-      window.URL.revokeObjectURL(url);
-    }, "Файл календаря скачан. Внутри уже добавлены напоминания за 1 день и за 1 час.");
+      const openMode = openCalendarFile(blob, fileName);
+      setMessage({
+        tone: "success",
+        text: openMode === "opened"
+          ? "Файл календаря открыт. Внутри уже добавлены напоминания за 1 день и за 1 час."
+          : "Файл календаря скачан. Внутри уже добавлены напоминания за 1 день и за 1 час.",
+      });
+    });
   }
 
   async function handleRejectBookingQuick(bookingId: string) {
@@ -791,7 +787,12 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
     }
 
     await runTask(async () => {
-      await Promise.all(items.map((item) => api.resyncTrainerCalendar({ bookingId: item.bookingId })));
+      for (const [index, item] of items.entries()) {
+        if (index > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, 900));
+        }
+        await api.resyncTrainerCalendar({ bookingId: item.bookingId });
+      }
       await loadTrainings();
     }, "Календарь пересинхронизирован по всем актуальным тренировкам.");
   }
@@ -1052,21 +1053,23 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
             </section>
 
             <section className="panel">
-              <div className="panel-header panel-header-compact panel-header-slim">
-                <div>
+              <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
+                <div className="panel-header-row">
                   <h2 className="panel-title">Главное меню</h2>
-                  <p className="panel-text">Три рабочих раздела: заявки, тренировки и настройки.</p>
+                  <div className="panel-header-actions panel-header-actions-tight">
+                    <button
+                      className="secondary-button secondary-button-compact icon-button-compact"
+                      aria-label="Обновить главную"
+                      title="Обновить"
+                      disabled={isBusy}
+                      onClick={() => void loadHomeData()}
+                    >
+                      <RefreshIcon />
+                    </button>
+                  </div>
                 </div>
-                <div className="panel-header-actions">
-                  <button
-                    className="secondary-button secondary-button-compact icon-button-compact"
-                    aria-label="Обновить главную"
-                    title="Обновить"
-                    disabled={isBusy}
-                    onClick={() => void loadHomeData()}
-                  >
-                    <RefreshIcon />
-                  </button>
+                <div className="panel-header-copy panel-header-copy-wide">
+                  <p className="panel-text">Три рабочих раздела: заявки, тренировки и настройки.</p>
                 </div>
               </div>
 
@@ -1244,7 +1247,29 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
         {screen === "bookings" ? (
           <section className="panel trainer-bookings-panel">
-            {renderCompactHeader("Заявки", "Здесь только неподтверждённые записи и активные переносы.", () => setScreen("home"), () => void loadBookings())}
+            <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
+              <button className="back-link back-link-inline back-link-icon" disabled={isBusy} onClick={() => setScreen("home")}>
+                <ArrowLeftIcon />
+                <span>Назад</span>
+              </button>
+              <div className="panel-header-row">
+                <h2 className="panel-title">Заявки</h2>
+                <div className="panel-header-actions panel-header-actions-tight">
+                  <button
+                    className="secondary-button secondary-button-compact icon-button-compact"
+                    aria-label="Обновить раздел Заявки"
+                    title="Обновить"
+                    disabled={isBusy}
+                    onClick={() => void loadBookings()}
+                  >
+                    <RefreshIcon />
+                  </button>
+                </div>
+              </div>
+              <div className="panel-header-copy panel-header-copy-wide">
+                <p className="panel-text">Здесь только неподтверждённые записи и активные переносы.</p>
+              </div>
+            </div>
 
             {visibleBookings.length === 0 ? (
               <div className="empty-state">
@@ -1494,38 +1519,45 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                 ? "Здесь хранятся прошедшие тренировки, которые автоматически ушли из активного списка."
                 : "Все актуальные тренировки в выбранном диапазоне: подтверждённые, отменённые и перенесённые.",
               () => setScreen("home"),
-              () => void loadTrainings(trainingsView),
-              trainingsView === "active" ? (
+              <>
+                {trainingsView === "active" ? (
+                  <button
+                    className="secondary-button secondary-button-compact icon-button-compact"
+                    aria-label="Пересинхронизировать календарь"
+                    title="Пересинхронизировать календарь"
+                    disabled={isBusy}
+                    onClick={() => void handleResyncAllTrainings()}
+                  >
+                    <CalendarIcon />
+                  </button>
+                ) : null}
                 <button
                   className="secondary-button secondary-button-compact icon-button-compact"
-                  aria-label="Пересинхронизировать календарь"
-                  title="Пересинхронизировать календарь"
+                  aria-label="Обновить раздел Тренировки"
+                  title="Обновить"
                   disabled={isBusy}
-                  onClick={() => void handleResyncAllTrainings()}
+                  onClick={() => void loadTrainings(trainingsView)}
                 >
-                  <CalendarIcon />
+                  <RefreshIcon />
                 </button>
-              ) : null,
+                <button
+                  className="chip-button chip-button-compact"
+                  data-active={trainingsView === "active" ? "true" : "false"}
+                  disabled={isBusy}
+                  onClick={() => setTrainingsView("active")}
+                >
+                  Актуальные
+                </button>
+                <button
+                  className="chip-button chip-button-compact"
+                  data-active={trainingsView === "archive" ? "true" : "false"}
+                  disabled={isBusy}
+                  onClick={() => setTrainingsView("archive")}
+                >
+                  Архив
+                </button>
+              </>,
             )}
-
-            <div className="chip-group compact-stack">
-              <button
-                className="chip-button chip-button-compact"
-                data-active={trainingsView === "active" ? "true" : "false"}
-                disabled={isBusy}
-                onClick={() => setTrainingsView("active")}
-              >
-                Актуальные
-              </button>
-              <button
-                className="chip-button chip-button-compact"
-                data-active={trainingsView === "archive" ? "true" : "false"}
-                disabled={isBusy}
-                onClick={() => setTrainingsView("archive")}
-              >
-                Архив
-              </button>
-            </div>
 
             {trainings.length === 0 ? (
               <div className="empty-state">
@@ -1724,7 +1756,20 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
         {screen === "slots" ? (
           <section className="panel trainer-slots-panel">
-            {renderCompactHeader("Слоты", "Нажимай по часу, чтобы открыть или закрыть слот. Для диапазонов используй форму ниже.", () => setScreen("settings"), () => void loadSlots())}
+            {renderCompactHeader(
+              "Слоты",
+              "Нажимай по часу, чтобы открыть или закрыть слот. Для диапазонов используй форму ниже.",
+              () => setScreen("settings"),
+              <button
+                className="secondary-button secondary-button-compact icon-button-compact"
+                aria-label="Обновить раздел Слоты"
+                title="Обновить"
+                disabled={isBusy}
+                onClick={() => void loadSlots()}
+              >
+                <RefreshIcon />
+              </button>,
+            )}
 
             <div className="form-grid form-grid-split slot-range-grid">
                 <label className="field">
@@ -1904,21 +1949,23 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
             )}
 
             <section className="panel panel-subsection">
-              <div className="panel-header panel-header-compact panel-header-slim">
-                <div>
+              <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
+                <div className="panel-header-row">
                   <h3 className="panel-title">Текущий чёрный список</h3>
-                  <p className="panel-text">Эти клиенты сейчас не смогут создавать новые заявки и запросы без слота.</p>
+                  <div className="panel-header-actions panel-header-actions-tight">
+                    <button
+                      className="secondary-button secondary-button-compact icon-button-compact"
+                      aria-label="Обновить чёрный список"
+                      title="Обновить"
+                      disabled={isBusy}
+                      onClick={() => void loadBlacklist()}
+                    >
+                      <RefreshIcon />
+                    </button>
+                  </div>
                 </div>
-                <div className="panel-header-actions">
-                  <button
-                    className="secondary-button secondary-button-compact icon-button-compact"
-                    aria-label="Обновить чёрный список"
-                    title="Обновить"
-                    disabled={isBusy}
-                    onClick={() => void loadBlacklist()}
-                  >
-                    <RefreshIcon />
-                  </button>
+                <div className="panel-header-copy panel-header-copy-wide">
+                  <p className="panel-text">Эти клиенты сейчас не смогут создавать новые заявки и запросы без слота.</p>
                 </div>
               </div>
 
@@ -1947,7 +1994,20 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
         {screen === "settings" ? (
           <section className="panel trainer-settings-panel">
-            {renderCompactHeader("Настройки", "Здесь собраны поиск клиентов, чёрный список, слоты и параметры записи.", () => setScreen("home"), () => void loadSettings())}
+            {renderCompactHeader(
+              "Настройки",
+              "Здесь собраны поиск клиентов, чёрный список, слоты и параметры записи.",
+              () => setScreen("home"),
+              <button
+                className="secondary-button secondary-button-compact icon-button-compact"
+                aria-label="Обновить раздел Настройки"
+                title="Обновить"
+                disabled={isBusy}
+                onClick={() => void loadSettings()}
+              >
+                <RefreshIcon />
+              </button>,
+            )}
 
             <section className="panel panel-subsection trainer-settings-panel">
               <div className="panel-header">
@@ -2105,7 +2165,20 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
         {screen === "no-slot" ? (
           <section className="panel">
-            {renderCompactHeader("Запросы без слота", "Клиенты оставляют пожелания по дням и времени, когда в сетке нет подходящего окна.", () => setScreen("settings"), () => void loadNoSlotRequests())}
+            {renderCompactHeader(
+              "Запросы без слота",
+              "Клиенты оставляют пожелания по дням и времени, когда в сетке нет подходящего окна.",
+              () => setScreen("settings"),
+              <button
+                className="secondary-button secondary-button-compact icon-button-compact"
+                aria-label="Обновить раздел Запросы без слота"
+                title="Обновить"
+                disabled={isBusy}
+                onClick={() => void loadNoSlotRequests()}
+              >
+                <RefreshIcon />
+              </button>,
+            )}
 
             {noSlotRequests.length === 0 ? (
               <div className="empty-state">

@@ -508,9 +508,9 @@ a {
 
 .chip-button-compact {
   min-height: 30px;
-  padding: 6px 10px;
-  font-size: 12px;
-  line-height: 1.1;
+  padding: 0 10px;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .chip-button[data-active="true"] {
@@ -968,12 +968,40 @@ a {
   flex-shrink: 0;
 }
 
+.panel-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel-header-row > .panel-title {
+  margin: 0;
+}
+
+.panel-header-top-actions {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+}
+
+.panel-header-top-actions > .back-link-inline {
+  margin-bottom: 0;
+}
+
+.panel-header-actions-tight {
+  gap: 6px;
+  align-items: flex-start;
+}
+
 .panel-header-copy {
   min-width: 0;
 }
 
 .panel-header-copy-wide {
   flex: 1 1 auto;
+  width: 100%;
 }
 
 .support-contact {
@@ -1257,12 +1285,18 @@ a {
   height: 30px;
   min-height: 30px;
   padding: 0;
-  font-size: 14px;
+  font-size: 0;
   line-height: 1;
   justify-content: center;
 }
 
-.icon-button-compact svg,
+.icon-button-compact svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  margin: auto;
+}
+
 .calendar-icon-button svg,
 .action-btn--icon svg,
 .action-btn--icon-tight svg {
@@ -1734,8 +1768,8 @@ a {
 }
 
 .trainer-slots-panel .slot-legend {
-  gap: 8px;
-  margin: 2px 0 10px;
+  gap: 7px;
+  margin: 2px 0 9px;
 }
 
 .trainer-slots-panel .status-pill {
@@ -1744,18 +1778,22 @@ a {
   font-size: 10px;
 }
 
+.trainer-slots-panel .slot-range-grid {
+  gap: 8px;
+}
+
 .trainer-slots-panel .slot-day {
-  padding: 12px 13px;
+  padding: 11px 12px;
 }
 
 .trainer-slots-panel .slot-day-title {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .trainer-slots-panel .time-button {
-  min-height: 48px;
-  padding: 10px 0;
-  font-size: 14px;
+  min-height: 44px;
+  padding: 8px 0;
+  font-size: 13px;
 }
 
 .trainer-settings-panel .record-actions .primary-button,
@@ -1934,7 +1972,11 @@ a {
     font-size: 14px;
   }
 
-  .icon-button-compact svg,
+  .icon-button-compact svg {
+    width: 22px;
+    height: 22px;
+  }
+
   .calendar-icon-button svg,
   .action-btn--icon svg,
   .action-btn--icon-tight svg {
@@ -2323,13 +2365,23 @@ a {
     row-gap: 8px;
   }
 
+  .panel-header-top-actions {
+    gap: 8px;
+  }
+
+  .panel-header-row {
+    gap: 8px;
+  }
+
   .panel-header-slim .panel-header-actions {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
     justify-content: flex-end;
     flex-wrap: wrap;
   }
 
-  .panel-header-slim .panel-header-actions .secondary-button {
+  .panel-header-slim .panel-header-actions .secondary-button,
+  .panel-header-slim .panel-header-actions .chip-button {
     flex: 0 0 auto;
     min-width: 0;
   }
@@ -2341,6 +2393,12 @@ a {
     min-height: 30px;
     font-size: 14px;
     border-radius: 999px;
+  }
+
+  .panel-header-slim .chip-button-compact {
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 11px;
   }
 
   .panel-header-slim .panel-title {
@@ -2502,6 +2560,10 @@ a {
     padding: 8px 10px;
   }
 
+  .trainer-slots-panel {
+    padding: 11px;
+  }
+
   .trainer-settings-panel .chip-button {
     min-height: 32px;
     padding: 0 12px;
@@ -2520,6 +2582,29 @@ a {
   .trainer-thought-card span {
     font-size: 10px;
     line-height: 1.28;
+  }
+
+  .trainer-slots-panel .slot-range-grid {
+    gap: 8px;
+  }
+
+  .trainer-slots-panel .slot-legend {
+    margin: 8px 0;
+    gap: 6px;
+  }
+
+  .trainer-slots-panel .slot-day {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .trainer-slots-panel .slot-day-title {
+    font-size: 14px;
+  }
+
+  .trainer-slots-panel .time-button {
+    min-height: 40px;
+    font-size: 13px;
   }
 
   .trainer-record-list .record-meta,
