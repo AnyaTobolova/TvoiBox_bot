@@ -22,6 +22,11 @@ interface ClientInfo {
   phone?: string | null;
 }
 
+interface TelegramCalendarFile {
+  filename: string;
+  content: string;
+}
+
 @Injectable()
 export class TelegramNotificationsService {
   private readonly logger = createRuntimeLogger({
@@ -133,6 +138,7 @@ export class TelegramNotificationsService {
     bookingId: string;
     clientTelegramId: string;
     startAt: string;
+    calendarFile?: TelegramCalendarFile | null;
   }) {
     const lines = [
       "Тренер подтвердил запись в mini app.",
@@ -142,6 +148,15 @@ export class TelegramNotificationsService {
     ];
 
     await this.notifyClient(input.clientTelegramId, lines.join("\n"), "client-booking-confirmed");
+
+    if (input.calendarFile) {
+      await this.sendDocument(
+        input.clientTelegramId,
+        input.calendarFile,
+        "Приглашение в календарь. Откройте файл и сохраните событие в удобный календарь.",
+        "client-booking-confirmed-calendar",
+      );
+    }
   }
 
   async notifyClientAboutBookingRejected(input: {
@@ -271,6 +286,65 @@ export class TelegramNotificationsService {
       this.logger.warn("Telegram notification failed", {
         reason,
         chatId,
+        message: normalizedError.message,
+      });
+      return false;
+    }
+  }
+
+  private async sendDocument(chatId: string, document: TelegramCalendarFile, caption: string, reason: string) {
+    if (!chatId) {
+      this.logger.warn("Telegram document skipped because chatId is empty", { reason });
+      return false;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("chat_id", chatId);
+      formData.append("caption", caption);
+      formData.append(
+        "document",
+        new Blob([document.content], { type: "text/calendar; charset=utf-8" }),
+        document.filename,
+      );
+
+      const response = await fetch(`https://api.telegram.org/bot${this.appConfigService.values.telegramBotToken}/sendDocument`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const rawBody = await response.text();
+      let payload: unknown = null;
+      if (rawBody) {
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          payload = rawBody;
+        }
+      }
+
+      if (!response.ok) {
+        this.logger.warn("Telegram document request failed", {
+          reason,
+          chatId,
+          status: response.status,
+          payload,
+        });
+        return false;
+      }
+
+      this.logger.info("Telegram document sent", {
+        reason,
+        chatId,
+        filename: document.filename,
+      });
+      return true;
+    } catch (error) {
+      const normalizedError = error as Error;
+      this.logger.warn("Telegram document failed", {
+        reason,
+        chatId,
+        filename: document.filename,
         message: normalizedError.message,
       });
       return false;

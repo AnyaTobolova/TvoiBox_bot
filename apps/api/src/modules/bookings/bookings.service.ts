@@ -2754,10 +2754,19 @@ export class BookingsService {
   }
 
   private async notifyClientBookingConfirmed(booking: PendingBookingDto) {
+    let calendarFile: ClientTrainingCalendarFileResult | null = null;
+
+    try {
+      calendarFile = await this.getClientTrainingCalendarFile(booking.client.telegramId, booking.id);
+    } catch {
+      calendarFile = null;
+    }
+
     await this.telegramNotificationsService.notifyClientAboutBookingConfirmed({
       bookingId: booking.id,
       clientTelegramId: booking.client.telegramId,
       startAt: booking.slot.startAt,
+      calendarFile,
     });
   }
 
