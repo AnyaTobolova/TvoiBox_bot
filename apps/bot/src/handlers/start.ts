@@ -4,7 +4,7 @@ import type { Bot, Context } from "grammy";
 import type { LoggerLike } from "../common/logger-like";
 import type { BotRuntimeConfig } from "../config/bot-config";
 import { buildScreenView } from "../menus/main-menu";
-import { buildClientMiniAppInlineKeyboard, getClientMiniAppLabel } from "../services/mini-app-entry";
+import { buildClientMiniAppInlineKeyboard, getClientMiniAppLabel, normalizeMiniAppUrl } from "../services/mini-app-entry";
 import { NavigationService } from "../services/navigation-service";
 import { RegistrationService } from "../services/registration-service";
 import type { ScreenId, UserRole } from "../services/screen-service";
@@ -24,7 +24,7 @@ function getTrainerMiniAppLabel(config: BotRuntimeConfig) {
 
 function buildMiniAppInlineKeyboard(config: BotRuntimeConfig) {
   const clientMiniAppButton = buildClientMiniAppInlineKeyboard(config.miniAppUrl);
-  const trainerMiniAppUrl = config.miniAppTrainerUrl.trim();
+  const trainerMiniAppUrl = normalizeMiniAppUrl(config.miniAppTrainerUrl);
 
   if (!clientMiniAppButton) {
     return null;
@@ -203,7 +203,7 @@ export function registerStartHandler(bot: Bot<Context>, dependencies: StartHandl
   });
 
   bot.command("trainerapp", async (context) => {
-    const trainerMiniAppUrl = dependencies.config.miniAppTrainerUrl.trim();
+    const trainerMiniAppUrl = normalizeMiniAppUrl(dependencies.config.miniAppTrainerUrl);
 
     if (!trainerMiniAppUrl) {
       await context.reply("Ссылка на тренерский экран для этого бота пока не настроена.");
