@@ -507,9 +507,9 @@ a {
 }
 
 .chip-button-compact {
-  min-height: 34px;
-  padding: 7px 12px;
-  font-size: 13px;
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 12px;
   line-height: 1.1;
 }
 
@@ -1082,6 +1082,9 @@ a {
 
 .trainer-thought-card {
   min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
   padding: 10px 11px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.74);
@@ -1096,15 +1099,15 @@ a {
 
 .trainer-thought-card strong {
   font-size: 16px;
-  line-height: 1.08;
-  font-weight: 800;
+  line-height: 1.16;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .trainer-thought-card span {
-  order: -1;
   color: rgba(24, 21, 21, 0.42);
   font-size: 11px;
-  line-height: 1.24;
+  line-height: 1.28;
 }
 
 .hero-card-compact {
@@ -1249,12 +1252,12 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
   padding: 0;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   justify-content: center;
 }
@@ -1270,10 +1273,10 @@ a {
 }
 
 .secondary-button-compact {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 700;
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .booking-panel {
@@ -1526,6 +1529,12 @@ a {
 
 .trainer-workout-card .workout-card__head {
   margin-bottom: 0;
+}
+
+.workout-card__summary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 
 .workout-card__top {
@@ -2308,16 +2317,16 @@ a {
 
   .panel-header-slim {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    column-gap: 8px;
-    row-gap: 6px;
+    column-gap: 0;
+    row-gap: 8px;
   }
 
   .panel-header-slim .panel-header-actions {
-    width: auto;
+    width: 100%;
     justify-content: flex-end;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   .panel-header-slim .panel-header-actions .secondary-button {
@@ -2326,11 +2335,11 @@ a {
   }
 
   .panel-header-slim .icon-button-compact {
-    width: 34px;
-    min-width: 34px;
-    height: 34px;
-    min-height: 34px;
-    font-size: 16px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+    font-size: 14px;
     border-radius: 999px;
   }
 
@@ -2410,13 +2419,13 @@ a {
   }
 
   .trainer-thought-card strong {
-    font-size: 16px;
-    line-height: 1.12;
+    font-size: 15px;
+    line-height: 1.18;
   }
 
   .trainer-thought-card span {
     font-size: 10px;
-    line-height: 1.22;
+    line-height: 1.28;
   }
 
   .slot-range-grid {
@@ -2505,10 +2514,12 @@ a {
 
   .trainer-thought-card strong {
     font-size: 14px;
+    line-height: 1.18;
   }
 
   .trainer-thought-card span {
     font-size: 10px;
+    line-height: 1.28;
   }
 
   .trainer-record-list .record-meta,

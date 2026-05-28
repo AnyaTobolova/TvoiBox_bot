@@ -1380,9 +1380,14 @@ export function MiniAppRoot() {
                   return (
                     <article className="record-card workout-card" key={item.bookingId}>
                       <div className="workout-card__head">
-                        <div className="workout-card__top">
-                          <div className="workout-card__date">{formatDateOnly(item.startAt)}</div>
-                          <div className="workout-card__time">{formatTime(item.startAt)}</div>
+                        <div className="workout-card__summary">
+                          <div className="workout-card__top">
+                            <div className="workout-card__date">{formatDateOnly(item.startAt)}</div>
+                            <div className="workout-card__time">{formatTime(item.startAt)}</div>
+                          </div>
+                          <div className="workout-card__status" data-tone={getStatusTone(item)}>
+                            {getClientStatusLabel(item)}
+                          </div>
                         </div>
                         {item.trainingStatus && item.trainingStatus !== "CANCELLED" && !item.isAwaitingTrainerDecision ? (
                           <button
@@ -1395,10 +1400,6 @@ export function MiniAppRoot() {
                             <CalendarIcon />
                           </button>
                         ) : null}
-                      </div>
-
-                      <div className="workout-card__status" data-tone={getStatusTone(item)}>
-                        {getClientStatusLabel(item)}
                       </div>
 
                       {primaryComment ? <p className="workout-card__comment">{primaryComment}</p> : null}

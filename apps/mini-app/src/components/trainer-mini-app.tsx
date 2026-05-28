@@ -1635,7 +1635,7 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
                     ) : trainingsView === "archive" ? (
                       <div className="record-actions workout-card__actions">
                         <button className="action-btn action-btn--danger-soft" disabled={isBusy} onClick={() => void handleForceCloseTraining(item.bookingId)}>
-                          РЈРґР°Р»РёС‚СЊ
+                          Удалить
                         </button>
                       </div>
                     ) : null}

@@ -6,8 +6,8 @@ COMPOSE_FILE="deploy/compose.server.yml"
 BASE_ENV_FILE="${ROOT_DIR}/.env.server"
 OVERRIDE_ENV_FILE="${ROOT_DIR}/.env.server.test-bot.override"
 RUNTIME_ENV_FILE="${ROOT_DIR}/.env.server.test-bot.runtime"
-# Dev test bot may need several minutes to validate the token and resume polling after image rebuild on VPS.
-START_LOG_ATTEMPTS="${START_LOG_ATTEMPTS:-60}"
+# Dev test bot may need up to ~10 minutes to validate the token and resume polling after image rebuild on VPS.
+START_LOG_ATTEMPTS="${START_LOG_ATTEMPTS:-120}"
 START_LOG_DELAY_SECONDS="${START_LOG_DELAY_SECONDS:-5}"
 
 if [[ ! -f "${BASE_ENV_FILE}" ]]; then
