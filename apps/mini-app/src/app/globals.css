@@ -1022,6 +1022,14 @@ a {
   margin-top: 10px;
 }
 
+.trainer-trainings-panel .panel-header-top-actions {
+  gap: 6px;
+}
+
+.trainer-trainings-panel .panel-header-subactions {
+  margin-top: 6px;
+}
+
 .panel-header-copy {
   min-width: 0;
 }
@@ -2426,6 +2434,10 @@ a {
     gap: 8px;
   }
 
+  .trainer-trainings-panel .panel-header-top-actions {
+    gap: 6px;
+  }
+
   .panel-header-row {
     gap: 8px;
   }
@@ -2470,6 +2482,10 @@ a {
   .panel-header-slim .panel-text {
     max-width: none;
     line-height: 1.42;
+  }
+
+  .trainer-trainings-panel .panel-header-subactions {
+    margin-top: 4px;
   }
 
   .support-contact {

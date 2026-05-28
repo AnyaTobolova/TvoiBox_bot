@@ -1283,29 +1283,20 @@ export function TrainerMiniApp({ api, session }: TrainerMiniAppProps) {
 
         {screen === "bookings" ? (
           <section className="panel trainer-bookings-panel">
-            <div className="panel-header panel-header-compact panel-header-slim panel-header-top-actions">
-              <button className="back-link back-link-inline back-link-icon" disabled={isBusy} onClick={() => setScreen("home")}>
-                <ArrowLeftIcon />
-                <span>Назад</span>
-              </button>
-              <div className="panel-header-row">
-                <h2 className="panel-title">Заявки</h2>
-                <div className="panel-header-actions panel-header-actions-tight">
-                  <button
-                    className="secondary-button secondary-button-compact header-action-button"
-                    aria-label="Обновить раздел Заявки"
-                    title="Обновить"
-                    disabled={isBusy}
-                    onClick={() => void loadBookings()}
-                  >
-                    Обновить
-                  </button>
-                </div>
-              </div>
-              <div className="panel-header-copy panel-header-copy-wide">
-                <p className="panel-text">Здесь только неподтверждённые записи и активные переносы.</p>
-              </div>
-            </div>
+            {renderCompactHeader(
+              "Заявки",
+              "Здесь только неподтверждённые записи и активные переносы.",
+              () => setScreen("home"),
+              <button
+                className="secondary-button secondary-button-compact header-action-button"
+                aria-label="Обновить раздел Заявки"
+                title="Обновить"
+                disabled={isBusy}
+                onClick={() => void loadBookings()}
+              >
+                Обновить
+              </button>,
+            )}
 
             {visibleBookings.length === 0 ? (
               <div className="empty-state">
