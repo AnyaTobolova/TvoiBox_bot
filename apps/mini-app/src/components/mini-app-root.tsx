@@ -478,6 +478,7 @@ export function MiniAppRoot() {
   };
 
   useEffect(() => {
+    (window as Window & { __TVOY_BOX_CLIENT_BOOTED?: boolean }).__TVOY_BOX_CLIENT_BOOTED = true;
     void bootstrap();
   }, []);
 
