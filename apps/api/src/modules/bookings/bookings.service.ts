@@ -2301,14 +2301,32 @@ export class BookingsService {
     now: Date,
   ): Promise<void> {
     const pastTrainingFilter = {
-      training: {
-        isNot: null,
-      },
-      slot: {
-        endAt: {
-          lte: now,
+      AND: [
+        {
+          training: {
+            isNot: null,
+          },
         },
-      },
+        {
+          OR: [
+            {
+              slot: {
+                endAt: {
+                  lte: now,
+                },
+              },
+            },
+            {
+              status: BookingStatus.CANCELLED,
+            },
+            {
+              training: {
+                status: TrainingStatus.CANCELLED,
+              },
+            },
+          ],
+        },
+      ],
     } satisfies Prisma.BookingWhereInput;
 
     await transaction.booking.updateMany({
