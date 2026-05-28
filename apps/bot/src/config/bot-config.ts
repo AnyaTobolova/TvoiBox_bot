@@ -90,11 +90,21 @@ function getDefaultMiniAppUrl(source: NodeJS.ProcessEnv = process.env): string {
     return "";
   }
 
-  if (/^https?:\/\//iu.test(publicAppDomain)) {
-    return publicAppDomain;
+  const miniAppUrl = /^https?:\/\//iu.test(publicAppDomain)
+    ? publicAppDomain
+    : `https://${publicAppDomain}`;
+  const publicApiDomain = source.PUBLIC_API_DOMAIN?.trim();
+
+  if (!publicApiDomain) {
+    return miniAppUrl;
   }
 
-  return `https://${publicAppDomain}`;
+  const apiBaseUrl = /^https?:\/\//iu.test(publicApiDomain)
+    ? publicApiDomain
+    : `https://${publicApiDomain}`;
+  const url = new URL(miniAppUrl);
+  url.searchParams.set("apiBaseUrl", apiBaseUrl);
+  return url.toString();
 }
 
 export interface BotRuntimeConfig {

@@ -206,7 +206,26 @@ interface ClientsResponse {
 }
 
 export function getMiniAppApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const apiBaseUrlFromQuery = new URLSearchParams(window.location.search).get("apiBaseUrl")?.trim();
+
+    if (apiBaseUrlFromQuery && isAllowedApiBaseUrl(apiBaseUrlFromQuery)) {
+      return apiBaseUrlFromQuery.replace(/\/$/u, "");
+    }
+  }
+
   return process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:3000";
+}
+
+function isAllowedApiBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === "https:" && (hostname === "anyatobolova.ru" || hostname.endsWith(".anyatobolova.ru"))
+      || url.protocol === "http:" && (hostname === "localhost" || hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
 }
 
 export class MiniAppApi {
