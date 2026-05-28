@@ -30,8 +30,12 @@ function buildClientMiniAppKeyboard(config: BotRuntimeConfig) {
   return buildClientMiniAppInlineKeyboard(config.miniAppUrl);
 }
 
+function getTrainerMiniAppUrl(config: BotRuntimeConfig) {
+  return normalizeMiniAppUrl(config.miniAppTrainerUrl) || normalizeMiniAppUrl(config.miniAppUrl);
+}
+
 function buildAdminMiniAppInlineKeyboard(config: BotRuntimeConfig) {
-  const trainerMiniAppUrl = normalizeMiniAppUrl(config.miniAppTrainerUrl);
+  const trainerMiniAppUrl = getTrainerMiniAppUrl(config);
 
   if (!trainerMiniAppUrl) {
     return null;
@@ -256,7 +260,7 @@ export function registerStartHandler(bot: Bot<Context>, dependencies: StartHandl
       return;
     }
 
-    const trainerMiniAppUrl = normalizeMiniAppUrl(dependencies.config.miniAppTrainerUrl);
+    const trainerMiniAppUrl = getTrainerMiniAppUrl(dependencies.config);
 
     if (!trainerMiniAppUrl) {
       await context.reply("Ссылка на тренерский экран для этого бота пока не настроена.");
