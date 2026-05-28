@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
       <head>
-        <script src="https://telegram.org/js/telegram-web-app.js?57" />
+        <script src="/vendor/telegram-web-app.js?v=57" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
