@@ -1,9 +1,6 @@
-name: Deploy Dev Mini App
+name: Disabled Deploy Dev Mini App
 
 on:
-  push:
-    branches:
-      - dev
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +10,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy mini app dev contour
-    if: github.ref == 'refs/heads/dev'
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
