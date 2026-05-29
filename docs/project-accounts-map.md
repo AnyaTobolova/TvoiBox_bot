@@ -1,0 +1,205 @@
+# Project Accounts And Infrastructure Map
+
+Документ нужен как быстрый ориентир, если проект снова нужно дорабатывать или обслуживать.
+Здесь намеренно нет токенов, паролей, private keys и полных секретных значений.
+
+## Production Контур
+
+- Основной Telegram bot: `@TvoyBox_bot`.
+- Mini app domain: `https://app.anyatobolova.ru/`.
+- API domain: `https://api.anyatobolova.ru/`.
+- Активная Git branch: `main`.
+- Dev/test контур выключен.
+- `@testtvoy_bot` больше не используется и может быть удалён в Telegram/BotFather.
+
+## Telegram
+
+### Production Bot
+
+- Bot username: `@TvoyBox_bot`.
+- Bot id: `8790733336`.
+- Управление ботом: через `@BotFather` в Telegram-аккаунте владельца.
+- Delivery mode: webhook.
+- Public webhook host: `https://api.anyatobolova.ru`.
+- Webhook route хранится в server env и Caddy; полный секретный path не дублировать в документах без необходимости.
+- Runtime token хранится только на VPS:
+  - `/opt/stack/tvoy-box-bot-deploy/shared/.env.server`
+  - key: `TELEGRAM_BOT_TOKEN`
+
+### Telegram Admin / Trainer
+
+- `ADMIN_TELEGRAM_ID=492732093`.
+- `TRAINER_TELEGRAM_ID=492732093`.
+- В текущей версии admin и trainer - один Telegram user.
+
+### Test Bot
+
+- Test bot/dev bot больше не нужен.
+- Dev Docker stack остановлен и удалён из активного runtime.
+- Remote branch `dev` удалена.
+- GitHub workflow dev-deploy удалён из репозитория.
+
+## GitHub
+
+- GitHub account/org: `AnyaTobolova`.
+- Repository: `AnyaTobolova/TvoiBox_bot`.
+- Production branch: `main`.
+- Active workflow:
+  - `.github/workflows/deploy-production.yml`
+  - workflow name: `Deploy Production`
+  - trigger: push to `main` or manual `workflow_dispatch`
+- Runtime secrets приложения не хранятся в GitHub.
+- GitHub Actions хранит только deploy-доступ к VPS:
+  - `VPS_HOST`
+  - `VPS_PORT`
+  - `VPS_USER`
+  - `VPS_SSH_PRIVATE_KEY`
+  - `VPS_KNOWN_HOSTS`
+
+## VPS
+
+- Public IP: `62.113.111.4`.
+- SSH users:
+  - `deploy` - обычный deploy user для GitHub Actions и ручного deploy.
+  - `root` - нужен для Caddy/systemd/Docker cleanup.
+- Локальный SSH key для обслуживания:
+  - `~/.ssh/codex_vps_deploy_ed25519`
+- Production deploy root:
+  - `/opt/stack/tvoy-box-bot-deploy`
+- Current production release:
+  - `/opt/stack/tvoy-box-bot-deploy/current`
+- Shared runtime secrets:
+  - `/opt/stack/tvoy-box-bot-deploy/shared/.env.server`
+  - `/opt/stack/tvoy-box-bot-deploy/shared/.secrets/google-service-account.json`
+- Production logs directory:
+  - `/opt/stack/tvoy-box-bot-deploy/shared/logs`
+
+## Docker Production Stack
+
+Stack name: `tvoy-box-bot`.
+
+Active services:
+
+- `tvoy-box-bot-postgres-1`
+  - image: `postgres:17-alpine`
+  - internal PostgreSQL database for the app.
+- `tvoy-box-bot-api-1`
+  - public path through Caddy: `https://api.anyatobolova.ru`
+  - local port: `127.0.0.1:3300 -> 3000`
+  - health: `https://api.anyatobolova.ru/health`
+- `tvoy-box-bot-bot-1`
+  - Telegram webhook listener.
+  - local port: `127.0.0.1:3301 -> 8081`
+- `tvoy-box-bot-mini-app-1`
+  - public path through Caddy: `https://app.anyatobolova.ru`
+  - local port: `127.0.0.1:3302 -> 3001`
+
+Useful checks:
+
+```bash
+ssh -i ~/.ssh/codex_vps_deploy_ed25519 deploy@62.113.111.4
+cd /opt/stack/tvoy-box-bot-deploy/current
+docker compose --env-file .env.server -f deploy/compose.server.yml ps
+curl https://api.anyatobolova.ru/health
+curl https://app.anyatobolova.ru/mini-api/health
+curl -I https://app.anyatobolova.ru/
+```
+
+## Caddy
+
+- Host-level Caddy terminates HTTPS.
+- Caddy config:
+  - `/etc/caddy/Caddyfile`
+- HTTP/3/QUIC отключён для стабильности Android Telegram WebView:
+
+```caddyfile
+{
+    servers {
+        protocols h1 h2
+    }
+}
+```
+
+Production routes:
+
+- `api.anyatobolova.ru`
+  - webhook path -> `127.0.0.1:3301`
+  - all other API paths -> `127.0.0.1:3300`
+- `app.anyatobolova.ru`
+  - `/mini-api/*` -> `127.0.0.1:3300`
+  - all other paths -> `127.0.0.1:3302`
+
+Caddy validation/reload:
+
+```bash
+ssh -i ~/.ssh/codex_vps_deploy_ed25519 root@62.113.111.4
+caddy validate --config /etc/caddy/Caddyfile
+systemctl reload caddy
+systemctl is-active caddy
+```
+
+## Domains And DNS
+
+- Domain zone: `anyatobolova.ru`.
+- Active public records:
+  - `api.anyatobolova.ru` -> `62.113.111.4`
+  - `app.anyatobolova.ru` -> `62.113.111.4`
+- IPv6/AAAA records are not used.
+- DNS registrar/control panel account is not recorded in the repo; check the owner account that manages `anyatobolova.ru`.
+
+## Google Cloud And Calendar
+
+- Google Cloud service account:
+  - `tvoybox-bot@tvoybox-bot.iam.gserviceaccount.com`
+- Service account JSON on VPS:
+  - `/opt/stack/tvoy-box-bot-deploy/shared/.secrets/google-service-account.json`
+- Runtime env references:
+  - `GOOGLE_SERVICE_ACCOUNT_JSON_SOURCE=../.secrets/google-service-account.json`
+  - `GOOGLE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/google-service-account.json`
+- Production calendar id:
+  - `findirtobolova@gmail.com`
+- Calendar sync is server-side through Google Calendar API.
+- Client `.ics` files are generated by API and sent/opened through Telegram/mini app fallback.
+
+## Local Workspace
+
+- Local project path:
+  - `C:\Users\User\OneDrive\Desktop\Согласование времени тренировок Твой Бокс`
+- Main progress log:
+  - `Этапы разработки.md`
+- Production operations runbook:
+  - `docs/production-ops-runbook.md`
+- This account/infrastructure map:
+  - `docs/project-accounts-map.md`
+
+## What Was Cleaned Up
+
+- Remote Git branch `dev` deleted.
+- Local Git branch `dev` deleted.
+- Dev/test Docker stack stopped.
+- Dev/test Docker volume removed:
+  - `tvoy-box-miniapp-dev_postgres_data`
+- Dev VPS directory removed:
+  - `/opt/stack/tvoy-box-miniapp-dev`
+- Docker build cache pruned.
+- Unused Docker images pruned.
+- Local Git garbage cleaned with `git gc --prune=now`.
+
+## What Not To Delete Casually
+
+- `/opt/stack/tvoy-box-bot-deploy/shared/.env.server`
+- `/opt/stack/tvoy-box-bot-deploy/shared/.secrets/google-service-account.json`
+- `/opt/stack/tvoy-box-bot-deploy/shared/logs`
+- Active Docker volume:
+  - `tvoy-box-bot_postgres_data`
+- Active production releases under:
+  - `/opt/stack/tvoy-box-bot-deploy/releases`
+
+Production releases are small and useful for rollback, so keep the last several releases.
+
+## Still Worth Doing Later
+
+- Change the temporary root password that was used during maintenance.
+- If the new bot token was shared in chat again, rotate it one more time without sending it through chat.
+- If mobile networks become unstable again, add CDN/proxy in front of `app` and `api`.
+- Before 2026-09-16, revisit GitHub Actions compatibility with Node.js 24.
